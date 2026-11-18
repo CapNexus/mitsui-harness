@@ -1,0 +1,3 @@
+[submodule "mitsui-wda"]
+	path = mitsui-wda
+	url = https://github.com/CapNexus/mitsui-wda.git
