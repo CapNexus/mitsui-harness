@@ -1,0 +1,16 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "guard-answer-key",
+      "description": "Block writes to and shell commands that modify the frozen answer-key paths.",
+      "trigger": "PreToolUse",
+      "matcher": "fs_write|execute_bash",
+      "action": {
+        "type": "command",
+        "command": "uv run python3 scripts/hooks/guard-answer-key.py"
+      },
+      "timeout": 15
+    }
+  ]
+}

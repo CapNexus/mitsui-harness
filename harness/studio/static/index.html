@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Harness Studio</title>
+  <link rel="stylesheet" href="/static/app.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js" defer></script>
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">Harness Studio <span class="muted">· mitsui-harness · Kiro</span></div>
+    <div id="env" class="env"></div>
+    <div id="tokens" class="tokens" title="Kiro does not report token usage over ACP; figures are estimated from text size (≈4 chars per token) and undercount context re-sent on each tool turn."></div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <section id="next" class="card next"></section>
+      <div class="filters" role="group" aria-label="Filter stories">
+        <button data-filter="all" class="chip on">All</button>
+        <button data-filter="runnable" class="chip">Runnable</button>
+        <button data-filter="waiting" class="chip">Waiting</button>
+        <button data-filter="blocked" class="chip">Blocked</button>
+        <button data-filter="done" class="chip">Done</button>
+      </div>
+      <input id="search" class="search" placeholder="Search id or title" aria-label="Search stories">
+      <nav id="tree" class="tree"></nav>
+    </aside>
+
+    <main class="main">
+      <section id="story" class="card story">
+        <p class="muted">Pick a story on the left, or open the suggested next story.</p>
+      </section>
+
+      <section id="runpanel" class="card runpanel hidden">
+        <div class="runhead">
+          <div>
+            <div id="runtitle" class="runtitle"></div>
+            <div id="runmeta" class="muted small"></div>
+          </div>
+          <div class="runbtns">
+            <button id="btnStop" class="btn danger hidden">Stop</button>
+            <button id="btnResume" class="btn hidden">Resume</button>
+          </div>
+        </div>
+        <ol id="steps" class="steps"></ol>
+        <section id="review" class="review hidden"></section>
+        <div class="consolebar">
+          <strong>Live console</strong>
+          <label><input type="checkbox" data-kind="agent" checked> agent</label>
+          <label><input type="checkbox" data-kind="thought"> thinking</label>
+          <label><input type="checkbox" data-kind="tool" checked> tools</label>
+          <label><input type="checkbox" data-kind="output" checked> validator</label>
+          <label><input type="checkbox" data-kind="info" checked> info</label>
+          <label class="push"><input type="checkbox" id="follow" checked> follow</label>
+        </div>
+        <div id="console" class="console" role="log" aria-live="polite"></div>
+      </section>
+    </main>
+  </div>
+  <div id="toast" class="toast hidden" role="status"></div>
+</body>
+</html>

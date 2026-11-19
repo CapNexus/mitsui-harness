@@ -1,0 +1,3 @@
+# harness-db (SQLite) and per-run audit logs stay local
+data/
+__pycache__/

@@ -1,0 +1,40 @@
+{
+  "name": "frame_elaborate",
+  "purpose": "Turn new epics and stories into Bolt-sized, EARS-criteria PBIs for the reservoir.",
+  "trigger": "requirement",
+  "shape": "frame",
+  "steps": [
+    {
+      "name": "triage",
+      "kind": "agent",
+      "prompt": "frame_triage",
+      "prompt_map": null,
+      "agent": "reviewer",
+      "check": null
+    },
+    {
+      "name": "decompose",
+      "kind": "agent",
+      "prompt": "frame_decompose",
+      "prompt_map": null,
+      "agent": "reviewer",
+      "check": null
+    },
+    {
+      "name": "atomic_check",
+      "kind": "deterministic",
+      "prompt": null,
+      "prompt_map": null,
+      "agent": null,
+      "check": "every leaf is a PBI with 1-6 EARS criteria, effort XS/S/M, a known work type, grounded scope and full coverage of its parent"
+    },
+    {
+      "name": "promote",
+      "kind": "human",
+      "prompt": null,
+      "prompt_map": null,
+      "agent": null,
+      "check": "A person decides whether each Refined item becomes Ready-for-Loop"
+    }
+  ]
+}

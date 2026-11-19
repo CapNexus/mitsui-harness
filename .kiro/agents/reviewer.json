@@ -1,0 +1,22 @@
+{
+  "name": "reviewer",
+  "description": "Read-only agent for classification, review, triage and decomposition.",
+  "model": "auto",
+  "tools": [
+    "read",
+    "grep",
+    "glob"
+  ],
+  "allowedTools": [
+    "read",
+    "grep",
+    "glob"
+  ],
+  "resources": [
+    "file://.kiro/steering/engineering-standards.md",
+    "file://.kiro/steering/project-context.md",
+    "file://.kiro/steering/core.md",
+    "file://.kiro/steering/infra.md",
+    "file://.kiro/steering/testing.md"
+  ]
+}

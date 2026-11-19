@@ -5,7 +5,7 @@ title: Short imperative title
 tier: build                 # build = sandbox, no Mitsui dependency | integrate = Mitsui environment
 executor: agent             # agent | human | mixed
 owner: Mike                 # Mike (PM) | Soma (SA) | Venkat (DevOps)
-repo: planning              # planning | code/infra | code/data | code/gateway-tools | code/assistant | code/teams-bot
+repo: planning              # planning | project-mep-AWS-Infrastructure | project-mep-AWS-Code (see docs/0002)
 status: draft               # draft | ready | in-progress | blocked | done
 sow: D0                     # SOW deliverable
 due: YYYY-MM-DD             # from the task list
