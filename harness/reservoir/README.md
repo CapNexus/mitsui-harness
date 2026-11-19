@@ -1,0 +1,194 @@
+# Frame reservoir
+
+Every leaf is a PBI sized for one Bolt: one issue → one `plan_build` run → one PR.
+Maturity stops at **refined**. Promoting refined → **Ready-for-Loop** is a person's call (full review where `review` = full).
+
+- 169 items, 147 leaves
+- Leaves by maturity: {'drafted': 147}
+- By effort: {'S': 77, 'XS': 24, 'M': 46}
+- By validation tier: {'light': 86, 'standard': 61}
+- Needing full review: 61
+- Out of scope: 0; left undecomposed (budget, depth, or a failed step): 0; features with no children: 0
+- Splits that don't cover every parent criterion: 0
+- Grounded in a codebase: no
+
+## Most common problems on drafted leaves
+
+- not grounded (147)
+- 2 open question(s) (43)
+- 3 open question(s) (13)
+- 1 open question(s) (8)
+- 1 acceptance criteria are not EARS ('... shall ...') (1)
+- 4 open question(s) (1)
+
+## Tree
+
+- `F1` Mobilization, plan and governance _(feature)_
+  - `F01-S01` Set up the dependency tracker and RAID log _(drafted, S, checker-script)_
+  - `F01-S02` Confirm kick-off date and named owners with backups _(drafted, XS, human-gated-step)_
+  - `F01-S03` Create the shared Teams channel and confirm CapNexus access _(drafted, XS, human-gated-step)_
+  - `F01-S04` Submit Deliverable 1 and record the review clock _(feature)_
+    - `F01-S04.1` Create the D1 draft checker script _(drafted, S, checker-script)_
+    - `F01-S04.2` Draft D1 from the task list and Feature List _(drafted, S, docs)_
+    - `F01-S04.3` Submit reviewed D1 with the acceptance form _(drafted, XS, human-gated-step)_
+    - `F01-S04.4` Record the review clock in the RAID log _(drafted, XS, chore)_
+    - `F01-S04.5` Brief the acceptance owner on the clock and rejection path _(drafted, XS, customer-approval)_
+  - `F01-S05` Send the weekly status report _(drafted, M, checker-script)_
+  - `F01-S06` Log slipped dependencies and shift plan dates _(drafted, M, checker-script)_
+- `F2` AWS landing zone and POC account as code _(feature)_
+  - `F02-S01` Run the pre-flight checks and confirm services in us-east-1 _(drafted, S, deployed-state-verification)_
+  - `F02-S02` Create the CDK app and pipeline skeleton _(drafted, M, cdk-infrastructure)_
+  - `F02-S03` Build the KMS key and log encryption baseline _(drafted, S, cdk-infrastructure)_
+  - `F02-S04` Build the AWS Budgets alert _(drafted, S, cdk-infrastructure)_
+  - `F02-S05` Write and test the teardown script _(drafted, M, cdk-infrastructure)_
+  - `F02-S06` Launch the Control Tower landing zone with Region-deny exceptions _(drafted, M, cdk-infrastructure)_
+  - `F02-S07` Create the POC workload account and enable IAM Identity Center _(drafted, M, human-gated-step)_
+  - `F02-S08` Prove a Bedrock Claude call works from the POC account _(drafted, S, acceptance-test)_
+  - `F02-S09` Deploy the baseline through the pipeline and test the budget alert _(feature)_
+    - `F02-S09.1` Create and authorize the CodeConnections connection to Mitsui's repository _(drafted, S, human-gated-step)_
+    - `F02-S09.2` Deploy the baseline stacks through the pipeline and confirm a second run is a no-op _(drafted, M, deployed-state-verification)_
+    - `F02-S09.3` Write and run scripts/check-kms-usage.sh _(drafted, S, checker-script)_
+    - `F02-S09.4` Send a test budget notification and get the billing contact's confirmation _(drafted, XS, human-gated-step)_
+  - `F02-S10` Confirm the temporary cross-account role is deleted _(drafted, XS, customer-approval)_
+  - `F02-S11` Export Control Tower drift and compliance evidence _(drafted, S, checker-script)_
+- `F3` Private connectivity (VPN and PrivateLink) _(feature)_
+  - `F03-S01` Collect the network values and change tickets from Mitsui _(drafted, S, human-gated-step)_
+  - `F03-S02` Build the workload VPC with isolated DMS and tool subnets _(drafted, M, cdk-infrastructure)_
+  - `F03-S03` Build the site-to-site VPN to the Palo Alto _(drafted, M, cdk-infrastructure)_
+  - `F03-S04` Build the PrivateLink endpoints _(drafted, S, cdk-infrastructure)_
+  - `F03-S05` Deploy the network to the POC account and send the Palo Alto configuration _(feature)_
+    - `F03-S05.1` Deploy the network, VPN and endpoint stacks to the POC account through the pipeline _(drafted, M, cdk-infrastructure)_
+    - `F03-S05.2` Verify the POC deployment is idempotent with a second run _(drafted, XS, deployed-state-verification)_
+    - `F03-S05.3` Generate the Palo Alto configuration for Mitsui's model and PAN-OS version _(drafted, S, config-generator)_
+    - `F03-S05.4` Send the Palo Alto configuration to Matt and get his confirmation of receipt _(drafted, XS, human-gated-step)_
+    - `F03-S05.5` Record InfoSec review status and CAB ticket before traffic opens _(drafted, XS, customer-approval)_
+  - `F03-S06` Validate both tunnels and TCP reachability from the DMS subnet _(drafted, S, acceptance-test)_
+  - `F03-S07` Prove the assistant has no path to the databases and save the evidence _(drafted, S, acceptance-test)_
+  - `F03-S08` Prove Bedrock, Athena and logs work over PrivateLink with no internet _(drafted, S, acceptance-test)_
+- `F4` Daily one-way data copy into S3 Tables _(feature)_
+  - `F04-S01` Pre-fill and sign off the approved table list _(feature)_
+    - `F04-S01.1` Generate the pre-filled approved table list from inventory CSVs _(drafted, M, config-generator)_
+    - `F04-S01.2` Add the checker for the completed approved table list _(drafted, S, checker-script)_
+    - `F04-S01.3` Run the generator on the returned inventory and collect owner decisions _(drafted, S, human-gated-step)_
+    - `F04-S01.4` Get the completed list signed and close DEP-10 _(drafted, XS, customer-approval)_
+  - `F04-S02` Define DMS, staging bucket and source secrets as code _(drafted, M, cdk-infrastructure)_
+  - `F04-S03` Generate DMS table mappings from the approved list _(drafted, M, config-generator)_
+  - `F04-S04` Build sandbox source databases with synthetic data _(drafted, M, data-pipeline)_
+  - `F04-S05` Load staged files into S3 Tables with a name map _(drafted, M, data-pipeline)_
+  - `F04-S06` Compare row counts after each load _(drafted, S, data-pipeline)_
+  - `F04-S07` Add load alarms and the email topic _(drafted, S, cdk-infrastructure)_
+  - `F04-S08` Orchestrate and schedule the daily load _(drafted, M, data-pipeline)_
+  - `F04-S09` Connect to Mitsui sources and run the first full loads _(feature)_
+    - `F04-S09.1` Record InfoSec approval of the data copy before the first load _(drafted, XS, customer-approval)_
+    - `F04-S09.2` Replace placeholders with real endpoints, approved table list and secrets _(drafted, S, human-gated-step)_
+    - `F04-S09.3` Confirm the DMS login is not privileged (DBA check) _(drafted, XS, human-gated-step)_
+    - `F04-S09.4` Verify DMS test connection succeeds for all three endpoints _(drafted, XS, deployed-state-verification)_
+    - `F04-S09.5` Run first full loads for MEPWELL and MEPS_ARIES and check approved-only tables _(drafted, M, data-pipeline)_
+    - `F04-S09.6` Verify source and target row counts for the first loads _(drafted, S, deployed-state-verification)_
+  - `F04-S10` Decide the SDEDBPROD approach and prove current edits load _(drafted, S, human-gated-step)_
+  - `F04-S11` Schedule the load in the agreed window and reach four clean runs _(feature)_
+    - `F04-S11.1` Record the DBA-confirmed load window and blackout dates _(drafted, XS, human-gated-step)_
+    - `F04-S11.2` Deploy the load schedule to the POC account and confirm the first unattended run _(drafted, S, cdk-infrastructure)_
+    - `F04-S11.3` Show four consecutive clean scheduled loads and export the evidence _(drafted, S, deployed-state-verification)_
+  - `F04-S12` Run the partial-load fault test and reach a stable load _(feature)_
+    - `F04-S12.1` Stop the DMS task mid-load on a manual run and capture the alarm transition _(drafted, S, deployed-state-verification)_
+    - `F04-S12.2` Get a Mitsui recipient to confirm the alarm email arrived _(drafted, XS, human-gated-step)_
+    - `F04-S12.3` Verify the next scheduled load recovers after the stopped run _(drafted, S, deployed-state-verification)_
+    - `F04-S12.4` Confirm five clean daily loads from Dec 7 to Dec 11 _(drafted, S, acceptance-test)_
+  - `F04-S13` Run the unattended window and export the evidence _(feature)_
+    - `F04-S13.1` Get written freeze confirmations and enter the window in the change-freeze calendar _(drafted, S, human-gated-step)_
+    - `F04-S13.2` Get Mitsui's written acceptance of the next-business-day check of the Dec 25 load _(drafted, XS, customer-approval)_
+    - `F04-S13.3` Create the load-freeze check script and the freeze tag _(drafted, S, checker-script)_
+    - `F04-S13.4` Create the load-evidence export script _(drafted, M, checker-script)_
+    - `F04-S13.5` Run the Dec 14 to Dec 24 evidence export on Dec 24 _(drafted, S, deployed-state-verification)_
+    - `F04-S13.6` Check the Dec 25 holiday load on the next business day and add it to the evidence _(drafted, XS, human-gated-step)_
+- `F5` Data catalog with SME descriptions _(feature)_
+  - `F05-S01` Pre-fill the description sheet and send it to the SMEs _(drafted, S, config-generator)_
+  - `F05-S02` Capture the crosswalk and join rules from the SMEs _(drafted, S, human-gated-step)_
+  - `F05-S03` Register tables in the catalog and load descriptions _(drafted, M, data-pipeline)_
+  - `F05-S04` Detect schema changes after each load _(drafted, M, data-pipeline)_
+  - `F05-S05` Register the real tables and load the first descriptions _(drafted, S, deployed-state-verification)_
+  - `F05-S06` Complete the descriptions and prove coverage _(drafted, M, checker-script)_
+- `F6` Identity federation (Entra to AWS) _(feature)_
+  - `F06-S01` Confirm Entra prerequisites and run federation planning session _(drafted, S, human-gated-step)_
+  - `F06-S02` Create the Entra groups and app registrations _(drafted, S, human-gated-step)_
+  - `F06-S03` Switch Identity Center to Entra with SAML and SCIM _(drafted, M, cdk-infrastructure)_
+  - `F06-S04` Build the trusted token issuer and identity-aware Athena workgroup as code _(drafted, M, cdk-infrastructure)_
+  - `F06-S05` Deploy the trusted token issuer for the Mitsui Entra tenant _(drafted, S, deployed-state-verification)_
+  - `F06-S06` Spike identity propagation to Athena in the sandbox _(drafted, M, checker-script)_
+  - `F06-S07` Test identity propagation in the POC account and decide the identity mode _(drafted, S, acceptance-test)_
+  - `F06-S08` Review Conditional Access for pilot, test and IT/PMO users _(drafted, S, human-gated-step)_
+- `F7` Data access control and column masking _(feature)_
+  - `F07-S01` Build Lake Formation table grants by Entra group as code _(drafted, M, config-generator)_
+  - `F07-S02` Build the column-masking data filter as code _(drafted, S, config-generator)_
+  - `F07-S03` Pre-fill and sign the masking and access matrix (Appendix E3) _(drafted, S, customer-approval)_
+  - `F07-S04` Apply the access matrix in the POC account _(drafted, S, deployed-state-verification)_
+  - `F07-S05` Build the A/B/C permission test harness _(drafted, M, acceptance-test)_
+  - `F07-S06` Create test users A, B, C and run the first permission test _(drafted, M, acceptance-test)_
+  - `F07-S07` Prove Lake Formation refuses writes sent directly to Athena _(drafted, S, acceptance-test)_
+- `F8` MCP tool layer behind AgentCore Gateway and Policy _(feature)_
+  - `F08-S01` Define the tool contract, limits and names _(drafted, M, documentation)_
+  - `F08-S02` Build the four read-only tool Lambdas _(drafted, M, cdk-infrastructure)_
+  - `F08-S03` Publish the tools through AgentCore Gateway with a JWT authorizer _(drafted, S, cdk-infrastructure)_
+  - `F08-S04` Enforce SELECT-only, row limits and timeouts with AgentCore Policy _(drafted, S, cdk-infrastructure)_
+  - `F08-S05` Place the tools in the VPC with no path to the source databases _(drafted, M, cdk-infrastructure)_
+  - `F08-S06` Deploy the Gateway and tools to the POC account with Entra _(drafted, M, human-gated-step)_
+- `F9` Well Data Assistant on AgentCore Runtime _(feature)_
+  - `F9.1` Deploy the assistant on AgentCore Runtime with Claude on Bedrock _(drafted, M, cdk-infrastructure)_
+  - `F9.2` Attach Bedrock Guardrails to the assistant _(drafted, S, cdk-infrastructure)_
+  - `F9.3` Wire the four tools and pass the asking user's token _(drafted, M, config-generator)_
+  - `F9.4` Table discovery and SQL authoring instructions _(drafted, S, config-generator)_
+  - `F9.5` Cross-database join rules through the MEPWELL crosswalk _(drafted, S, config-generator)_
+  - `F9.6` Answer format: short table plus the SQL that ran _(drafted, XS, config-generator)_
+  - `F9.7` Refuse non-SELECT requests before they reach Athena _(drafted, S, checker-script)_
+  - `F9.8` Acceptance tests: plain-English and cross-database questions _(drafted, M, acceptance-test)_
+  - `F9.9` Acceptance tests: write refusal and prompt injection _(drafted, S, acceptance-test)_
+  - `F9.10` Verify in the audit log that tools ran as the asking user _(drafted, S, deployed-state-verification)_
+  - `F9.11` Quota request and 15-user concurrency test _(drafted, S, deployed-state-verification)_
+- `F10` Microsoft Teams channel bot _(feature)_
+  - `F10.1` Provision the single-tenant Azure Bot resource _(drafted, S, human-gated-step)_
+  - `F10.2` Expose the bot messaging endpoint behind AWS WAF _(drafted, M, cdk-infrastructure)_
+  - `F10.3` Validate the Bot Framework JWT on every request _(drafted, M, chore)_
+  - `F10.4` Forward questions with the asker's identity and return a table plus SQL _(drafted, M, chore)_
+  - `F10.5` Build the Teams app package and install it in the pilot channel _(drafted, S, config-generator)_
+  - `F10.6` Verify pilot users are enrolled in the Entra groups, Team and channel _(drafted, S, deployed-state-verification)_
+  - `F10.7` Acceptance tests: Web Chat, pilot channel and permissions _(drafted, M, acceptance-test)_
+  - `F10.8` Measure answer latency on the frozen question set and report it _(drafted, S, acceptance-test)_
+- `F11` IT/PMO access from Claude Code and Claude Desktop _(feature)_
+  - `F11.1` InfoSec written approval of the connection method _(drafted, S, customer-approval)_
+  - `F11.2` Setup guide for adding the Gateway in Claude Code and Claude Desktop _(drafted, S, documentation)_
+  - `F11.3` Verify Claude Code sign-in and the four tools with a recorded session _(drafted, S, acceptance-test)_
+  - `F11.4` Verify Claude Desktop sign-in and the four tools with a recorded session _(drafted, S, acceptance-test)_
+  - `F11.5` Verify group enforcement and permission parity with Teams _(drafted, S, acceptance-test)_
+  - `F11.6` Verify write attempts are refused from both clients _(drafted, XS, acceptance-test)_
+  - `F11.7` IT/PMO lead sign-off on the recorded sessions _(drafted, XS, human-gated-step)_
+- `F12` Audit trail and monitoring _(feature)_
+  - `F12.1` Encrypted log destinations with restricted read access _(drafted, S, cdk-infrastructure)_
+  - `F12.2` CloudTrail coverage of Athena, Lake Formation and DMS activity _(drafted, S, cdk-infrastructure)_
+  - `F12.3` Bedrock invocation logging _(drafted, S, cdk-infrastructure)_
+  - `F12.4` Per-question audit record via AgentCore Observability _(drafted, M, data-pipeline)_
+  - `F12.5` CloudWatch dashboard and latency report _(drafted, S, cdk-infrastructure)_
+  - `F12.6` Partial-load and error alarms with SNS email _(drafted, S, cdk-infrastructure)_
+  - `F12.7` Verify test alarm reaches every recipient _(drafted, XS, deployed-state-verification)_
+  - `F12.8` Acceptance test: audit records for 20 sampled questions _(drafted, S, acceptance-test)_
+  - `F12.9` Runbook entry for log retention _(drafted, XS, documentation)_
+- `F13` Evaluation, security tests and pilot _(feature)_
+  - `F13.1` Publish Week 6 test plan and written rejection path _(drafted, S, documentation)_
+  - `F13.2` Question-set accuracy evaluation _(drafted, M, acceptance-test)_
+  - `F13.3` Write-refusal test through AgentCore Policy and Lake Formation _(drafted, S, acceptance-test)_
+  - `F13.4` Permission tests for Users A, B and C across three clients _(drafted, M, acceptance-test)_
+  - `F13.5` Verify no network path to on-premises databases _(drafted, S, deployed-state-verification)_
+  - `F13.6` Confirm Teams answer latency from the dashboard report _(drafted, S, acceptance-test)_
+  - `F13.7` Unattended daily load evidence, Dec 14 to Dec 25 _(drafted, S, deployed-state-verification)_
+  - `F13.8` Run the pilot with about 15 users and log wrong answers _(drafted, M, human-gated-step)_
+  - `F13.9` Enforce code freeze from Dec 18 _(drafted, XS, human-gated-step)_
+  - `F13.10` Assemble evidence pack and obtain Mitsui verifier sign-off _(drafted, M, customer-approval)_
+- `F14` Readout, handover and runbook _(feature)_
+  - `F14.1` Write the operations runbook _(drafted, M, docs)_
+  - `F14.2` Hand over code, IaC and configuration in the agreed repository _(drafted, M, deployed-state-verification)_
+  - `F14.3` Hold the knowledge-transfer session _(drafted, S, human-gated-step)_
+  - `F14.4` Estimate AWS run cost from actual usage _(drafted, S, docs)_
+  - `F14.5` Prepare the readout deck _(drafted, M, docs)_
+  - `F14.6` Hold the readout and record the keep, pause or tear down decision _(drafted, S, human-gated-step)_
+  - `F14.7` Remove CapNexus access after handover _(drafted, S, chore)_
+  - `F14.8` Submit D10 and D11 for acceptance _(drafted, S, customer-approval)_

@@ -40,6 +40,17 @@ Rules:
 | `entra_issuer_url` | DEP-14 | `TBD (sandbox: any OIDC provider)` | placeholder |
 | `wda_api_audience` | DEP-14 | `TBD` | placeholder |
 | `entra_groups` | DEP-14 | `sg-wda-users-well, sg-wda-users-geo, sg-wda-users-econ, sg-wda-econ-sensitive, sg-wda-itpmo-tools, sg-wda-admins, sg-wda-capnexus-engineers` | set |
+| `identity_mode` | DEP-27 | `propagated` (or `group_fallback`, SOW Assumption 8). Set by F06-S07 | placeholder |
+| `test_users` | DEP-14 | `TBD (Entra UPNs for test users A, B, C)` | placeholder |
+| `access_matrix_file` | DEP-16 | `config/access-matrix.yaml` (Appendix E3) | placeholder |
+| `s3_tables_namespace` | none | `wda` (proposed default) | placeholder |
+| `geometry_lob_max_kb` | DEP-11 | `64` (proposed DMS limited-LOB cap for shape columns) | placeholder |
+| `bedrock_model_id` | DEP-06 | `TBD (Claude Sonnet-class inference profile)` | placeholder |
+| `codeconnections_connection_arn` | DEP-25 | `TBD (connection to MEPUSA.ghe.com)` | placeholder |
+| `palo_alto_device_model` | DEP-07 | `TBD (model and PAN-OS version)` | placeholder |
+| `palo_alto_bgp_asn` | DEP-07 | `TBD (only if routing is BGP)` | placeholder |
+| `onprem_dns_servers` | DEP-07 | `TBD (only if SQL Servers are given by name)` | placeholder |
+| `endpoint_az_count` | none | `1` (cost estimate; DMS subnets still span 2 AZs) | placeholder |
 
 ## Limits (proposed, Feature List Section 6)
 

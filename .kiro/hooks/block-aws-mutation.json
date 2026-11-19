@@ -1,0 +1,16 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "block-aws-mutation",
+      "description": "Block cdk deploy, destroy and bootstrap and AWS CLI calls that create, change or delete resources.",
+      "trigger": "PreToolUse",
+      "matcher": "execute_bash",
+      "action": {
+        "type": "command",
+        "command": "uv run python3 scripts/hooks/block-aws-mutation.py"
+      },
+      "timeout": 15
+    }
+  ]
+}

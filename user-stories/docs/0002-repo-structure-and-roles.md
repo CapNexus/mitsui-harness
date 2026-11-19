@@ -6,17 +6,17 @@ Status: accepted (Nov 17, 2026)
 
 This repository is the main (parent) repository. It holds planning only: features, stories, dependencies, config parameters, evidence and scripts for tracking.
 
-The implementation lives in separate repositories added here as git submodules, under `code/`. Each submodule is versioned and can be handed over on its own (DEP-25 may move the code repository to Mitsui on Dec 17). Planning stays with CapNexus.
+The implementation lives in separate repositories on Mitsui's GitHub Enterprise (`MEPUSA.ghe.com`), added here as git submodules at the repository root. Each submodule is versioned and can be handed over on its own. Planning stays with CapNexus.
 
-Proposed submodules (names to confirm):
+Updated Nov 19, 2026: the five proposed `code/` submodules were replaced by the two repositories Mitsui created.
 
-| Path | Content | Features |
+| Path (`repo:` value) | Content | Features |
 |---|---|---|
-| `code/infra` | CDK: landing zone baseline, VPC, VPN, PrivateLink, DMS, pipeline, KMS, teardown | F2, F3, F4, F12 |
-| `code/data` | Glue/Athena load jobs, catalog, Lake Formation | F4, F5, F7 |
-| `code/gateway-tools` | MCP tools (Lambda), AgentCore Gateway and Policy | F8 |
-| `code/assistant` | AgentCore Runtime agent, Guardrails, eval harness | F9, F13 |
-| `code/teams-bot` | Bot endpoint, Teams app package | F10 |
+| `project-mep-AWS-Infrastructure` | CDK: landing zone baseline, VPC, VPN, PrivateLink, DMS resources, S3 buckets, KMS, pipeline, monitoring, teardown | F2, F3, F4 (DMS and buckets), F12 |
+| `project-mep-AWS-Code` | Glue/Athena load jobs, catalog, Lake Formation, MCP tools, AgentCore Gateway and Policy, assistant, Teams bot, eval harness | F4 (load jobs), F5, F6 (app config), F7, F8, F9, F10, F11, F13 |
+| `planning` (this repo) | Stories, evidence, tracking scripts | F1, F13 (evidence), F14 |
+
+A story that would touch both submodules is split so each story names one repository.
 
 Rules:
 1. A story names the submodule it changes in a `repo:` front-matter field.

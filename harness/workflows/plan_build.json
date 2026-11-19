@@ -1,0 +1,122 @@
+{
+  "name": "plan_build",
+  "purpose": "Classify an issue, plan it, write tests first where behavior changes, implement, validate and review.",
+  "trigger": "issue",
+  "shape": "loop",
+  "steps": [
+    {
+      "name": "classify",
+      "kind": "agent",
+      "prompt": "classify_issue",
+      "prompt_map": null,
+      "agent": "reviewer",
+      "check": null
+    },
+    {
+      "name": "plan",
+      "kind": "agent",
+      "prompt": null,
+      "prompt_map": {
+        "cdk-infrastructure": "plan_cdk_infrastructure",
+        "human-gated-step": "plan_human_gated_step",
+        "deployed-state-verification": "plan_deployed_state_verification",
+        "acceptance-test": "plan_acceptance_test",
+        "checker-script": "plan_checker_script",
+        "customer-approval": "plan_customer_approval",
+        "data-pipeline": "plan_data_pipeline",
+        "documentation": "plan_documentation",
+        "config-generator": "plan_config_generator",
+        "bug-fix": "plan_bug_fix",
+        "chore": "plan_chore",
+        "docs": "plan_documentation",
+        "harness-feature": "plan_harness_change",
+        "harness-prompt": "plan_harness_change",
+        "harness-agent": "plan_harness_change",
+        "harness-classification": "plan_harness_change",
+        "harness-tune": "plan_harness_change"
+      },
+      "agent": "builder",
+      "check": null
+    },
+    {
+      "name": "plan_exists",
+      "kind": "deterministic",
+      "prompt": null,
+      "prompt_map": null,
+      "agent": null,
+      "check": "the plan file exists, cites a story id and contains numbered criteria using 'shall'"
+    },
+    {
+      "name": "write_tests",
+      "kind": "agent",
+      "prompt": "write_tests",
+      "prompt_map": null,
+      "agent": "builder",
+      "check": null
+    },
+    {
+      "name": "commit_tests",
+      "kind": "agent",
+      "prompt": "commit",
+      "prompt_map": null,
+      "agent": "builder",
+      "check": null
+    },
+    {
+      "name": "red",
+      "kind": "deterministic",
+      "prompt": null,
+      "prompt_map": null,
+      "agent": null,
+      "check": "the new tests fail twice, and are skipped for classifications with tdd false"
+    },
+    {
+      "name": "implement",
+      "kind": "agent",
+      "prompt": "implement",
+      "prompt_map": null,
+      "agent": "builder",
+      "check": null
+    },
+    {
+      "name": "tests_unchanged",
+      "kind": "deterministic",
+      "prompt": null,
+      "prompt_map": null,
+      "agent": null,
+      "check": "files committed by commit_tests are byte-identical to that commit"
+    },
+    {
+      "name": "green",
+      "kind": "deterministic",
+      "prompt": null,
+      "prompt_map": null,
+      "agent": null,
+      "check": "npm test exits zero"
+    },
+    {
+      "name": "validate",
+      "kind": "deterministic",
+      "prompt": null,
+      "prompt_map": null,
+      "agent": null,
+      "check": "the driver runs every validator stage (format, lint, typecheck, test, build) and all exit zero"
+    },
+    {
+      "name": "review",
+      "kind": "agent",
+      "prompt": "review",
+      "prompt_map": null,
+      "agent": "reviewer",
+      "check": null
+    },
+    {
+      "name": "commit",
+      "kind": "agent",
+      "prompt": "commit",
+      "prompt_map": null,
+      "agent": "builder",
+      "check": null
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+evals/
+.kiro/agents/
+.kiro/hooks/
+scripts/hooks/
+harness/drivers/
+harness/audit/
+.kiro/steering/
+.kiro/prompts/
+harness/workflows/
+harness/run_story.py
+harness/context/
+scripts/validate.sh
+HARNESS.md
