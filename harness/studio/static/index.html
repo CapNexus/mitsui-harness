@@ -10,58 +10,86 @@
 </head>
 <body>
   <header class="topbar">
-    <div class="brand">Harness Studio <span class="muted">· mitsui-harness · Kiro</span></div>
-    <div id="env" class="env"></div>
-    <div id="tokens" class="tokens" title="Kiro does not report token usage over ACP; figures are estimated from text size (≈4 chars per token) and undercount context re-sent on each tool turn."></div>
+    <div class="brand">
+      <span class="logo" aria-hidden="true">◆</span>
+      <div>
+        <div class="brand-name">Harness Studio</div>
+        <div class="brand-sub">Well Data Assistant POC · build one user story at a time with Kiro</div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <span id="tokens" class="pill" title="Kiro usage so far, estimated from text size. Kiro bills credits to your account and does not report exact tokens."></span>
+      <button id="btnSetup" class="pill pill-btn" title="Check that everything Studio needs is installed and ready">Setup</button>
+      <button id="btnHelp" class="pill pill-btn" title="How Studio works and what the terms mean">? Help</button>
+    </div>
   </header>
 
   <div class="layout">
-    <aside class="sidebar">
-      <section id="next" class="card next"></section>
-      <div class="filters" role="group" aria-label="Filter stories">
-        <button data-filter="all" class="chip on">All</button>
-        <button data-filter="runnable" class="chip">Runnable</button>
-        <button data-filter="waiting" class="chip">Waiting</button>
-        <button data-filter="blocked" class="chip">Blocked</button>
-        <button data-filter="done" class="chip">Done</button>
+    <aside class="sidebar" aria-label="Stories">
+      <section id="startHere" class="card start"></section>
+
+      <div class="sidebar-head">
+        <h2>All stories</h2>
+        <button id="btnLegend" class="linkbtn" aria-expanded="false" aria-controls="legend">What do the labels mean?</button>
       </div>
-      <input id="search" class="search" placeholder="Search id or title" aria-label="Search stories">
+      <div id="legend" class="legend hidden"></div>
+      <div class="filters" role="group" aria-label="Filter stories" id="filters"></div>
+      <input id="search" class="search" type="search" placeholder="Search by ID or title (for example F02 or VPN)" aria-label="Search stories">
       <nav id="tree" class="tree"></nav>
     </aside>
 
     <main class="main">
-      <section id="story" class="card story">
-        <p class="muted">Pick a story on the left, or open the suggested next story.</p>
-      </section>
+      <section id="workspace" class="card workspace"></section>
 
-      <section id="runpanel" class="card runpanel hidden">
+      <section id="runpanel" class="card runpanel hidden" aria-label="Live progress">
         <div class="runhead">
           <div>
-            <div id="runtitle" class="runtitle"></div>
+            <h2 id="runtitle" class="runtitle"></h2>
             <div id="runmeta" class="muted small"></div>
           </div>
           <div class="runbtns">
-            <button id="btnStop" class="btn danger hidden">Stop</button>
-            <button id="btnResume" class="btn hidden">Resume</button>
-            <select id="fromStep" class="btn hidden" aria-label="Step to re-run from"></select>
-            <button id="btnRestart" class="btn hidden">Re-run from step</button>
+            <button id="btnStop" class="btn danger hidden" title="Stop after killing the current step. You can resume later.">Stop</button>
+            <button id="btnResume" class="btn primary hidden" title="Continue from the first step that did not finish">Resume</button>
+            <label id="restartBox" class="restart hidden" title="Run the chosen step and every step after it again">
+              <span>Re-run from</span>
+              <select id="fromStep" aria-label="Step to re-run from"></select>
+              <button id="btnRestart" class="btn">Go</button>
+            </label>
           </div>
         </div>
-        <ol id="steps" class="steps"></ol>
-        <section id="review" class="review hidden"></section>
+        <div id="nowLine" class="nowline hidden" role="status"></div>
+        <div id="runAlert"></div>
+        <ol id="timeline" class="timeline"></ol>
+
         <div class="consolebar">
-          <strong>Live console</strong>
-          <label><input type="checkbox" data-kind="agent" checked> agent</label>
-          <label><input type="checkbox" data-kind="thought"> thinking</label>
-          <label><input type="checkbox" data-kind="tool" checked> tools</label>
-          <label><input type="checkbox" data-kind="output" checked> validator</label>
-          <label><input type="checkbox" data-kind="info" checked> info</label>
-          <label class="push"><input type="checkbox" id="follow" checked> follow</label>
+          <h3>Live console</h3>
+          <div class="seg" role="group" aria-label="Console detail">
+            <button data-mode="simple" class="seg-btn on" title="Steps, results, warnings and what Kiro is doing (reading, searching, editing, running)">Simple</button>
+            <button data-mode="detailed" class="seg-btn" title="Everything: Kiro's full replies, validator output, prompts and Kiro's thinking">Detailed</button>
+          </div>
+          <div id="detailFilters" class="detailfilters hidden">
+            <label><input type="checkbox" data-kind="agent" checked> Kiro's replies</label>
+            <label><input type="checkbox" data-kind="output" checked> validator output</label>
+            <label><input type="checkbox" data-kind="info" checked> info</label>
+            <label><input type="checkbox" data-kind="thought"> Kiro's thinking</label>
+          </div>
+          <label class="push small"><input type="checkbox" id="follow" checked> auto-scroll</label>
         </div>
-        <div id="console" class="console" role="log" aria-live="polite"></div>
+        <div id="console" class="console" role="log" aria-live="polite" aria-label="Live console"></div>
       </section>
     </main>
   </div>
+
+  <dialog id="setupDlg" class="dlg" aria-labelledby="setupTitle">
+    <div class="dlg-head"><h2 id="setupTitle">Setup check</h2><button class="iconbtn" data-close aria-label="Close">✕</button></div>
+    <div id="setupBody"></div>
+  </dialog>
+
+  <dialog id="helpDlg" class="dlg dlg-wide" aria-labelledby="helpTitle">
+    <div class="dlg-head"><h2 id="helpTitle">How Harness Studio works</h2><button class="iconbtn" data-close aria-label="Close">✕</button></div>
+    <div id="helpBody" class="md"></div>
+  </dialog>
+
   <div id="toast" class="toast hidden" role="status"></div>
 </body>
 </html>

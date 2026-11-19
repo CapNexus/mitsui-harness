@@ -132,9 +132,11 @@ class StudioStepAudit(StepAudit):
                     self._in_chars += n
                 else:
                     self._out_chars += n
-        if self._tool_state.get(tid) != status:
-            self._tool_state[tid] = status
-            self._emit("tool", f"{title} [{status or 'started'}]")
+        seen = tid in self._tool_state
+        if not seen or (status == "failed" and self._tool_state.get(tid) != "failed"):
+            self._emit("tool" if status != "failed" else "warn",
+                       f"{'✗ failed: ' if status == 'failed' else '→ '}{title}")
+        self._tool_state[tid] = status
 
     def add_permission(self, tool: str, decision: str, option: Optional[str]) -> None:
         super().add_permission(tool, decision, option)
