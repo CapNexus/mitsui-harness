@@ -5,16 +5,34 @@ Most of this system is AWS CDK (TypeScript) infrastructure, scripted checks of d
 ## Running this harness (mitsui-harness)
 
 The harness lives in this planning repo; each story runs in the repository its `repo:` field
-names (ADR `user-stories/docs/0002`). `harness/run_story.py` wraps the shipped drivers, which
-are unchanged: git and `scripts/validate.sh` run inside the target submodule on a
-`story/<id>` branch, every prompt is told its target repository, and the reviewer gets the
-real diff. Story files under `user-stories/features/*/stories/` are the source of truth.
+names (ADR `user-stories/docs/0002`). `harness/run_story.py` points the drivers at that
+repository: git and `scripts/validate.sh` run inside the target submodule on a `story/<id>`
+branch, every prompt is told its target repository, and the reviewer gets the real diff.
+Story files under `user-stories/features/*/stories/` are the source of truth.
 
-**Prerequisites:** Node.js LTS with npm (the only node on PATH today is Kiro CLI's bundled one,
-without npm), `kiro-cli` on PATH, `uv`, and `AEW_AUTO_APPROVE=1` in the shell you run from.
+**The harness is the brain.** What each step does lives only in the harness:
+`harness/drivers/run_plan_build.py` (every `plan_build` step), `harness/run_story.py`
+(preflight, branch, environment, preamble, review diff) and `harness/story_analysis.py`
+(readiness, the `analyze_story` Kiro turn, the confidence score). Harness Studio
+(`harness/studio/`, started with `studio.cmd` / `studio.sh`) is a UI over the same calls: it
+runs the workflow one step at a time to checkpoint, stream and resume, and adds a human
+review gate before anything is pushed. CLI and Studio runs behave the same.
+
+**Driver corrections (2026-11-19).** The shipped drivers rendered every prompt with a bare
+`ARGUMENTS`, which the deployed `.kiro/prompts` templates reject, so no step could run. Now:
+prompts get the named variables they declare (`issue`, `classification`, `plan_file_path`,
+`base_ref`, `scope`; `items_json`/`work_types` and `item_json`/`must_cover` in
+`run_frame.py`); the plan step reads the plan *path* from `<<<SPEC>>>`; `plan_exists`, `red`
+(skipped for TDD-free work types) and `tests_unchanged` (against the `commit_tests` commit)
+are real checks; `commit_tests`/`commit` must produce a commit, and `commit` needs APPROVE.
+`harness/tests/test_prompt_contracts.py` fails if a driver and a template disagree again.
+
+**Prerequisites:** Node.js LTS with npm, `kiro-cli` on PATH (signed in), `uv`, and
+`AEW_AUTO_APPROVE=1` in the shell you run from. See the root `README.md` for setup.
 
 ```bash
 uv run --with-requirements harness/drivers/requirements.txt python harness/run_story.py list
+uv run --with-requirements harness/drivers/requirements.txt python harness/run_story.py analyze F02-S02
 uv run --with-requirements harness/drivers/requirements.txt python harness/run_story.py run --next
 uv run --with-requirements harness/drivers/requirements.txt python harness/run_story.py run F02-S02 --scaffold
 uv run --with-requirements harness/drivers/requirements.txt python harness/run_story.py record F02-S02
@@ -23,6 +41,10 @@ uv run --with-requirements harness/drivers/requirements.txt python harness/run_s
 - `list` / `run --next`: stories that are `ready`, `agent` or `mixed`, with every
   `depends_on_stories` entry `done`, earliest due date first. The first is F01-S01 (planning),
   then F02-S02 (the first code story).
+- `analyze <id>`: readiness (40%) plus the read-only Kiro analysis (60%), capped by open
+  dependencies; prints the confidence and exits 2 below 80. Studio shows the same result.
+- `run` creates the branch (`--branch` to name it), runs the loop and leaves the builder's
+  commits on it; a human reviews them before pushing.
 - `--scaffold` is a human unlock for the **first story in each submodule** (F02-S02 in
   Infrastructure, F02-S12 in Code): it lets that run ADD tsconfig/Jest/ESLint/Prettier configs.
 - **Repository split (ADR 0002, steering context-6):** `project-mep-AWS-Infrastructure` is the AWS

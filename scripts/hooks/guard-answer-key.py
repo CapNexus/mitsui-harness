@@ -31,6 +31,8 @@ GUARDED = (
     ".kiro/prompts/",
     "harness/workflows/",
     "harness/run_story.py",
+    "harness/story_analysis.py",
+    "harness/studio/",
     "harness/context/",
     "scripts/validate.sh",
     "HARNESS.md",

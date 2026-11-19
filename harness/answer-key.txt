@@ -11,3 +11,5 @@ harness/run_story.py
 harness/context/
 scripts/validate.sh
 HARNESS.md
+harness/story_analysis.py
+harness/studio/

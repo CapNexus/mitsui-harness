@@ -68,7 +68,7 @@ def environment() -> dict:
         "kiro_cli": shutil.which(os.getenv("KIRO_CLI_PATH", "kiro-cli")),
         "auto_approve": os.getenv("AEW_AUTO_APPROVE", "").lower() in ("1", "true", "yes"),
         "npm": shutil.which("npm"),
-        "bash": runner_mod.find_bash(),
+        "bash": runner_mod.rpb.find_bash(),
         "parent_dirty": catalog.dirty_files(ROOT)[:20],
         "interrupted_at_start": interrupted,
         "db": db.path,
@@ -105,8 +105,12 @@ class ImplementBody(BaseModel):
 
 
 class ReviewBody(BaseModel):
-    action: str          # commit | committed | reject
-    message: str = ""
+    action: str          # approve | reject
+    note: str = ""
+
+
+class ResumeBody(BaseModel):
+    from_step: str = ""
 
 
 def _guard(fn, *args, **kw):
@@ -155,8 +159,8 @@ def stop(rid: str) -> dict:
 
 
 @app.post("/api/runs/{rid}/resume")
-def resume(rid: str) -> dict:
-    _guard(runner.resume, rid)
+def resume(rid: str, body: ResumeBody = ResumeBody()) -> dict:
+    _guard(runner.resume, rid, body.from_step or None)
     return {"ok": True}
 
 
@@ -167,16 +171,18 @@ def diff(rid: str) -> dict:
         raise HTTPException(404, "unknown implementation run")
     target = ROOT if r["target_repo"] in (".", "") else os.path.join(ROOT, r["target_repo"])
     _, stat = catalog.git(target, "diff", "--stat", r["base_ref"])
-    _, untracked = catalog.git(target, "ls-files", "--others", "--exclude-standard")
+    _, log = catalog.git(target, "log", "--format=%h %s", f"{r['base_ref']}..HEAD")
+    loop = r["context"].get("loop") or {}
     return {"target": r["target_repo"], "branch": r["branch"], "base": r["base_ref"],
-            "stat": stat, "untracked": [u for u in untracked.splitlines() if u.strip()],
+            "stat": stat, "commits": [c for c in log.splitlines() if c.strip()],
+            "uncommitted": catalog.dirty_files(target),
             "diff": runner_mod.run_story.review_diff(target, r["base_ref"]),
-            "suggested_message": r["context"].get("suggested_commit_message", "")}
+            "review": loop.get("result:review", ""), "plan": loop.get("plan_file_path", "")}
 
 
 @app.post("/api/runs/{rid}/review")
 def review(rid: str, body: ReviewBody) -> dict:
-    return _guard(runner.complete_review, rid, body.action, body.message)
+    return _guard(runner.complete_review, rid, body.action, body.note)
 
 
 @app.get("/api/runs/{rid}/events")

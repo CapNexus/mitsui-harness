@@ -126,7 +126,8 @@ def make_triage(prompts_dir: str, agent: str) -> frame_driver.TriageRunner:
     def triage(batch: List[dict]) -> List[dict]:
         payload = [{"id": it["id"], "title": it.get("title", ""), "text": it.get("text", ""),
                    "parent": it.get("parent"), "grounding": []} for it in batch]
-        rendered = prompts.render(prompts_dir, "frame_triage", ARGUMENTS=json.dumps(payload, indent=2))
+        rendered = prompts.render(prompts_dir, "frame_triage", items_json=json.dumps(payload, indent=2),
+                                  work_types=", ".join(sorted(taxonomy_from_workflow())))
         reply = invoke_kiro(rendered.text, agent=agent, step="frame_triage", template="frame_triage",
                             params=rendered.params)
         block = prompts.extract(reply, "TRIAGE")
@@ -151,7 +152,8 @@ def make_elaborate(prompts_dir: str, agent: str):
                  dependency_context: List[dict]) -> dict:
         payload = [{**item, "problems": problems, "grounding": grounding,
                    "dependency_context": dependency_context}]
-        rendered = prompts.render(prompts_dir, "frame_triage", ARGUMENTS=json.dumps(payload, indent=2))
+        rendered = prompts.render(prompts_dir, "frame_triage", items_json=json.dumps(payload, indent=2),
+                                  work_types=", ".join(sorted(taxonomy_from_workflow())))
         reply = invoke_kiro(rendered.text, agent=agent, step="frame_elaborate", template="frame_triage",
                             params=rendered.params)
         block = prompts.extract(reply, "TRIAGE")
@@ -217,8 +219,10 @@ def make_decompose(prompts_dir: str, agent: str, max_children: int,
             args = dict(payload)
             if feedback:
                 args["previous_attempt_feedback"] = feedback
+            must = args.pop("must_cover")
             rendered = prompts.render(prompts_dir, "frame_decompose",
-                                      ARGUMENTS=json.dumps(args, indent=2))
+                                      item_json=json.dumps(args, indent=2),
+                                      must_cover="\n".join(must))
             reply = invoke_kiro(rendered.text, agent=agent, step=f"frame_decompose.{attempt}",
                                 template="frame_decompose", params=rendered.params)
             block = prompts.extract(reply, "DECOMPOSITION")

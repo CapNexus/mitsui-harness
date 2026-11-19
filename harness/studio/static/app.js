@@ -181,7 +181,7 @@ function tabImplement() {
       <textarea id="override" rows="2"></textarea></div>
     <div class="row"><button class="btn" id="btnPre">Check preflight</button><button class="btn primary" id="btnStart">Start implementation</button></div>
     <div id="pre"></div>
-    <p class="muted small">Runs the harness plan_build loop with Kiro: classify → plan → plan_exists → write_tests → red → implement → tests_unchanged → green → validate → review → <b>human review</b>. The agent never commits; you review the diff and commit at the end.</p>`;
+    <p class="muted small">Runs the harness <code>plan_build</code> workflow with Kiro, exactly as <code>run_story.py run</code> does: classify → plan → plan_exists → write_tests → commit_tests → red → implement → tests_unchanged → green → validate → review → commit → <b>human review</b>. The builder commits the tests, then the change once the reviewer agent APPROVEs, on the story branch. You review the commits before anything is pushed.</p>`;
   const body = () => ({ branch: $("#branch").value.trim(), scaffold: $("#scaffold").checked, override_reason: $("#override").value });
   $("#btnPre").onclick = async () => {
     const r = await api(`/api/stories/${st.summary.id}/preflight`, { method: "POST", body: JSON.stringify(body()) });
@@ -249,12 +249,22 @@ async function refreshRun() {
     `tokens in ${fmt(totalIn)} / out ${fmt(totalOut)}${reported ? "" : " (estimated)"}`, r.error && `error: ${r.error}`].filter(Boolean).join(" · ");
   $("#steps").innerHTML = r.steps.map((s) => `<li class="${esc(s.status)}" title="${esc(s.detail || "")}"><b>${esc(s.name)}</b>${esc(s.status)}${s.kind === "agent" ? `<br><span class="muted">~${fmt(s.input_tokens)} in / ${fmt(s.output_tokens)} out</span>` : ""}</li>`).join("");
   $("#btnStop").classList.toggle("hidden", !r.active);
-  $("#btnResume").classList.toggle("hidden", !["failed", "stopped", "interrupted"].includes(r.status));
+  const resumable = !r.active && ["failed", "stopped", "interrupted", "awaiting_review", "rejected"].includes(r.status);
+  $("#btnResume").classList.toggle("hidden", !resumable || !["failed", "stopped", "interrupted"].includes(r.status));
+  const sel = $("#fromStep");
+  sel.classList.toggle("hidden", !resumable);
+  $("#btnRestart").classList.toggle("hidden", !resumable);
+  if (resumable) sel.innerHTML = r.steps.filter((s) => s.name !== "human_review").map((s) => `<option value="${esc(s.name)}">${esc(s.name)}</option>`).join("");
   if (r.status === "awaiting_review") await renderReview(r); else $("#review").classList.add("hidden");
   if (!r.active) { loadOverview(); if (S.story?.summary.id === r.story_id) refreshStory(); }
 }
+const resumeRun = async (from_step) => {
+  try { await api(`/api/runs/${S.run}/resume`, { method: "POST", body: JSON.stringify({ from_step: from_step || "" }) }); $("#review").dataset.run = ""; await refreshRun(); }
+  catch (e) { toast(e.message); }
+};
 $("#btnStop").onclick = async () => { try { await api(`/api/runs/${S.run}/stop`, { method: "POST" }); } catch (e) { toast(e.message); } };
-$("#btnResume").onclick = async () => { try { await api(`/api/runs/${S.run}/resume`, { method: "POST" }); await refreshRun(); } catch (e) { toast(e.message); } };
+$("#btnResume").onclick = () => resumeRun("");
+$("#btnRestart").onclick = () => { const s = $("#fromStep").value; if (confirm(`Re-run from "${s}"? Later steps run again; earlier commits stay on the branch.`)) resumeRun(s); };
 
 function colorDiff(text) {
   return text.split("\n").map((l) => {
@@ -267,25 +277,26 @@ async function renderReview(r) {
   const el = $("#review");
   if (el.dataset.run === r.id && !el.classList.contains("hidden")) return;
   const d = await api(`/api/runs/${encodeURIComponent(r.id)}/diff`);
-  const review = r.context.review || {};
+  const lines = (d.review || "").trim().split("\n"), verdict = lines[lines.length - 1] || "n/a";
+  const repo = d.target === "." ? "" : `-C ${d.target} `;
   el.dataset.run = r.id;
   el.innerHTML = `<h3>Human review</h3>
-    <p>Reviewer agent verdict: <b>${esc(review.verdict || "n/a")}</b> · branch <code>${esc(d.branch)}</code> in <code>${esc(d.target)}</code></p>
-    ${review.text ? `<details><summary>Reviewer findings</summary><pre class="diff">${esc(review.text)}</pre></details>` : ""}
-    <details open><summary>Changes against ${esc(d.base.slice(0, 10))}</summary><pre class="diff">${colorDiff(d.stat + "\n\n" + d.diff)}</pre></details>
-    <div class="field"><label for="cmsg">Commit message</label><textarea id="cmsg" rows="5">${esc(d.suggested_message)}</textarea></div>
-    <div class="row"><button class="btn primary" id="rvCommit">Commit all changes to ${esc(d.branch)}</button>
-      <button class="btn" id="rvDone" title="Use this if you committed from your own terminal">I committed it myself</button>
+    <p>The harness committed the approved change on <code>${esc(d.branch)}</code> in <code>${esc(d.target)}</code>. Reviewer agent verdict: <b>${esc(verdict)}</b>. Nothing is pushed yet.</p>
+    <h4>Commits</h4><pre class="diff">${esc(d.commits.join("\n") || "(none)")}</pre>
+    ${d.uncommitted.length ? `<p class="errors">Left uncommitted by the agent: ${d.uncommitted.map(esc).join(", ")}</p>` : ""}
+    ${d.review ? `<details><summary>Reviewer findings</summary><pre class="diff">${esc(d.review)}</pre></details>` : ""}
+    <details open><summary>Changes against ${esc(d.base.slice(0, 10))}${d.plan ? ` · plan <code>${esc(d.plan)}</code>` : ""}</summary><pre class="diff">${colorDiff(d.stat + "\n\n" + d.diff)}</pre></details>
+    <div class="field"><label for="rvNote">Note (optional, saved with your decision)</label><textarea id="rvNote" rows="2"></textarea></div>
+    <div class="row"><button class="btn primary" id="rvApprove">Approve: ready to push</button>
       <button class="btn danger" id="rvReject">Reject</button></div>
-    <p class="muted small">Nothing is pushed. After committing: push the branch and open a PR in the target repo; once merged, run <code>run_story.py record ${esc(r.story_id)}</code>.</p>`;
+    <p class="muted small">After approving: <code>git ${esc(repo)}push -u origin ${esc(d.branch)}</code>, open a PR, and once it is merged run <code>run_story.py record ${esc(r.story_id)}</code>. To change something first, fix it on the branch yourself, or pick a step and use <b>Re-run from step</b>.</p>`;
   el.classList.remove("hidden");
   const act = async (action) => {
-    try { await api(`/api/runs/${r.id}/review`, { method: "POST", body: JSON.stringify({ action, message: $("#cmsg").value }) }); el.dataset.run = ""; await refreshRun(); toast(`Review: ${action}`); }
+    try { await api(`/api/runs/${r.id}/review`, { method: "POST", body: JSON.stringify({ action, note: $("#rvNote").value }) }); el.dataset.run = ""; await refreshRun(); toast(`Review: ${action}`); }
     catch (e) { toast(e.message); }
   };
-  $("#rvCommit").onclick = () => act("commit");
-  $("#rvDone").onclick = () => act("committed");
-  $("#rvReject").onclick = () => { if (confirm("Reject this run? The work stays on the branch.")) act("reject"); };
+  $("#rvApprove").onclick = () => act("approve");
+  $("#rvReject").onclick = () => { if (confirm("Reject this run? The commits stay on the branch.")) act("reject"); };
 }
 
 // --- boot ------------------------------------------------------------------------------------

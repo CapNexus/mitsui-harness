@@ -1,23 +1,24 @@
 """Run one user story through the plan_build loop, in the repository its `repo:` names.
 
-The shipped drivers (harness/drivers/, copied verbatim from harness-bootstrap) assume the
-code lives in the repo they run from. Here it lives in git submodules (ADR
-user-stories/docs/0002), so this wrapper keeps the drivers unchanged and redirects only
-what must follow the story's repository:
+The drivers (harness/drivers/) run the loop; the code lives in git submodules (ADR
+user-stories/docs/0002). This wrapper points the loop at the story's repository:
 
-  * git (changed-file discovery, the commit steps' file list) runs inside that repo;
-  * scripts/validate.sh validates that repo (HARNESS_TARGET_REPO) against its base branch;
+  * git (changed-file discovery, commits) and scripts/validate.sh run inside that repo
+    (`PlanBuildContext.repo_dir`, HARNESS_TARGET_REPO) against the base commit;
   * every agent prompt starts with which repo to work in, and the review step gets the
     real diff (the reviewer agent has no shell);
-  * work happens on a `story/<id>` branch inside that repo.
+  * work happens on a `story/<id>` branch (or `--branch`) inside that repo.
 
 Kiro agents, hooks, steering and prompts stay in this parent repo (the process cwd), so
-the tool boundaries and guards apply unchanged.
+the tool boundaries and guards apply unchanged. Harness Studio calls `prepare()`,
+`resume()` and `make_context()` from here, so the CLI and the web app run stories the
+same way.
 
-    uv run python harness/run_story.py list                 # runnable stories, first one first
-    uv run python harness/run_story.py run --next           # run the first runnable story
+    uv run python harness/run_story.py list                  # runnable stories, first one first
+    uv run python harness/run_story.py analyze F02-S02       # readiness + Kiro analysis -> confidence
+    uv run python harness/run_story.py run --next            # run the first runnable story
     uv run python harness/run_story.py run F02-S02 --scaffold   # human unlock: first code in a repo
-    uv run python harness/run_story.py record F02-S02       # after the submodule PR is merged
+    uv run python harness/run_story.py record F02-S02        # after the submodule PR is merged
 
 Prerequisites: `uv pip install -r harness/drivers/requirements.txt`, `kiro-cli` on PATH,
 and AEW_AUTO_APPROVE=1 (the agents cannot write or run commands without it).
@@ -28,15 +29,18 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import glob
+import json
 import os
 import re
 import subprocess
 import sys
-from typing import Dict, List, Optional, Tuple
+from dataclasses import asdict, dataclass
+from typing import Callable, Dict, List, Optional, Tuple
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STORIES = os.path.join(ROOT, "user-stories", "features")
 SUBMODULES = ("project-mep-AWS-Infrastructure", "project-mep-AWS-Code")
+VALIDATOR = os.path.join(ROOT, "scripts", "validate.sh").replace(os.sep, "/")
 DIFF_CAP = 60_000
 
 sys.path.insert(0, os.path.join(ROOT, "harness", "drivers"))
@@ -96,10 +100,15 @@ def target_dir(meta: Dict[str, str]) -> str:
     return path
 
 
+def default_branch(sid: str) -> str:
+    return f"story/{sid}"
+
+
 # --- git in the target repo -----------------------------------------------------------------
 
 def git(target: str, *args: str) -> Tuple[int, str]:
-    r = subprocess.run(["git", "-C", target, *args], capture_output=True, text=True)
+    r = subprocess.run(["git", "-C", target, *args], capture_output=True, text=True,
+                       encoding="utf-8", errors="replace")
     return r.returncode, (r.stdout + r.stderr).strip()
 
 
@@ -108,6 +117,11 @@ def must(target: str, *args: str) -> str:
     if code != 0:
         raise SystemExit(f"git -C {target} {' '.join(args)} failed:\n{out}")
     return out
+
+
+def dirty(target: str) -> List[str]:
+    return [line for line in must(target, "status", "--porcelain").splitlines()
+            if line.strip() and not (target == ROOT and line[3:].strip() in SUBMODULES)]
 
 
 def review_diff(target: str, base: str) -> str:
@@ -125,7 +139,7 @@ def review_diff(target: str, base: str) -> str:
     return text if len(text) <= DIFF_CAP else text[:DIFF_CAP] + "\n\n[diff truncated]"
 
 
-# --- the run -------------------------------------------------------------------------------
+# --- preparing a run ------------------------------------------------------------------------
 
 def preamble(sid: str, meta: Dict[str, str], target: str) -> str:
     rel = os.path.relpath(target, ROOT).replace(os.sep, "/")
@@ -147,71 +161,156 @@ def preamble(sid: str, meta: Dict[str, str], target: str) -> str:
             "<<<END HARNESS CONTEXT>>>\n\n")
 
 
-def run(sid: str, scaffold: bool) -> int:
+@dataclass
+class StoryRun:
+    """What a story run needs to (re)start: persisted by callers that resume."""
+    sid: str
+    target: str          # absolute path of the repo the story changes
+    branch: str
+    base_ref: str        # commit the branch was created from
+    base_name: str       # branch name it was created from, for messages
+    scaffold: bool = False
+
+    @property
+    def target_rel(self) -> str:
+        return os.path.relpath(self.target, ROOT).replace(os.sep, "/")
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+    @staticmethod
+    def from_dict(d: dict) -> "StoryRun":
+        return StoryRun(**{k: d[k] for k in ("sid", "target", "branch", "base_ref", "base_name", "scaffold")})
+
+
+def preflight(sid: str, branch: Optional[str] = None) -> Tuple[List[str], Optional[str]]:
+    """Problems that stop a run, and the target repo. Never changes anything."""
     if os.getenv("AEW_AUTO_APPROVE", "").lower() not in ("1", "true", "yes"):
-        raise SystemExit("set AEW_AUTO_APPROVE=1 first: without it every agent tool call is denied")
+        problems = ["set AEW_AUTO_APPROVE=1 first: without it every agent tool call is denied"]
+    else:
+        problems = []
     stories = load_stories()
     if sid not in stories:
-        raise SystemExit(f"no story file for {sid} under user-stories/features/*/stories/")
-    story = stories[sid]
-    meta = story["meta"]
+        return problems + [f"no story file for {sid} under user-stories/features/*/stories/"], None
+    meta = stories[sid]["meta"]
     if meta.get("executor") == "human":
-        raise SystemExit(f"{sid} is executor: human; the harness does not run it")
-    target = target_dir(meta)
+        problems.append(f"{sid} is executor: human; the harness does not run it")
+    try:
+        target = target_dir(meta)
+    except SystemExit as e:
+        return problems + [str(e)], None
+    left = dirty(target)
+    if left:
+        problems.append(f"{os.path.relpath(target, ROOT)} has uncommitted changes; commit or stash them "
+                        "first so the story's commits hold only its own work: " + "; ".join(left[:10]))
+    branch = branch or default_branch(sid)
+    if subprocess.run(["git", "check-ref-format", "--branch", branch], capture_output=True).returncode != 0:
+        problems.append(f"`{branch}` is not a valid branch name")
+    else:
+        if git(target, "rev-parse", "--abbrev-ref", "HEAD")[1] == branch:
+            problems.append(f"already on {branch}; check out the base branch first")
+        elif git(target, "rev-parse", "--verify", "--quiet", branch)[0] == 0:
+            problems.append(f"branch {branch} already exists in {target}; delete it or finish that run")
+    return problems, target
 
-    dirty = [line for line in must(target, "status", "--porcelain").splitlines()
-             if not (target == ROOT and line[3:].strip() in SUBMODULES)]
-    if dirty:
-        raise SystemExit(f"{os.path.relpath(target, ROOT)} has uncommitted changes; commit or stash "
-                         "them first so the story's commit holds only its own work:\n  "
-                         + "\n  ".join(dirty[:20]))
-    base = must(target, "rev-parse", "--abbrev-ref", "HEAD")
-    branch = f"story/{sid}"
-    if base == branch:
-        raise SystemExit(f"already on {branch}; check out the base branch first")
-    if git(target, "rev-parse", "--verify", branch)[0] == 0:
-        raise SystemExit(f"branch {branch} already exists in {target}; delete it or finish that run")
-    must(target, "checkout", "-b", branch)
 
-    os.environ["HARNESS_TARGET_REPO"] = target
-    os.environ["VALIDATE_BASE_REF"] = base
-    if scaffold:
+def _set_env(sr: StoryRun) -> None:
+    os.environ["HARNESS_TARGET_REPO"] = sr.target
+    os.environ["VALIDATE_BASE_REF"] = sr.base_ref
+    if sr.scaffold:
         os.environ["VALIDATE_SCAFFOLD"] = "1"
-        print(f"scaffold unlock: protected configs may be ADDED in {target} for this run only")
+    else:
+        os.environ.pop("VALIDATE_SCAFFOLD", None)
 
-    import run_plan_build as rpb  # noqa: E402  (shipped driver, unchanged)
 
-    rpb._git = lambda *args: git(target, *args)
-    rpb.VALIDATOR = os.path.join(ROOT, "scripts", "validate.sh").replace(os.sep, "/")
-    pre = preamble(sid, meta, target)
-    real_invoke = rpb.invoke_kiro
+def prepare(sid: str, scaffold: bool = False, branch: Optional[str] = None) -> StoryRun:
+    """Check, create the story branch in the target repo, and set the validator environment."""
+    problems, target = preflight(sid, branch)
+    if problems:
+        raise SystemExit("\n".join(problems))
+    branch = branch or default_branch(sid)
+    base_name = must(target, "rev-parse", "--abbrev-ref", "HEAD")
+    base_ref = must(target, "rev-parse", "HEAD")
+    must(target, "checkout", "-b", branch)
+    sr = StoryRun(sid, target, branch, base_ref, base_name, scaffold)
+    _set_env(sr)
+    return sr
 
-    def invoke(text: str, **kw):
+
+def resume(sr: StoryRun) -> None:
+    """Back on the story branch with the run's environment (after a stop or a restart)."""
+    if git(sr.target, "rev-parse", "--abbrev-ref", "HEAD")[1] != sr.branch:
+        must(sr.target, "checkout", sr.branch)
+    _set_env(sr)
+
+
+def issue_text(sr: StoryRun) -> str:
+    story = load_stories()[sr.sid]
+    pre = preamble(sr.sid, story["meta"], sr.target)
+    return (f"{pre}# {sr.sid}: {story['meta'].get('title', '')}\n\nSource: "
+            f"{os.path.relpath(story['path'], ROOT).replace(os.sep, '/')}\n\n{story['text']}")
+
+
+def make_context(sr: StoryRun, run_dir: str, invoke: Optional[Callable[..., str]] = None, **hooks):
+    """The PlanBuildContext for this story: target repo, base, validator, and an invoke that
+    prefixes the repository preamble and gives the reviewer the real diff."""
+    import run_plan_build as rpb  # noqa: E402
+    from agents import invoke_kiro  # noqa: E402
+
+    base_invoke = invoke or invoke_kiro
+    pre = preamble(sr.sid, load_stories()[sr.sid]["meta"], sr.target)
+
+    def story_invoke(text: str, **kw) -> str:
         if kw.get("step") == "review":
-            text += "\n\n## The actual change under review (from git, not from the builder)\n\n" \
-                    + review_diff(target, base)
-        return real_invoke(pre + text, **kw)
+            text += ("\n\n## The actual change under review (from git, not from the builder)\n\n"
+                     + review_diff(sr.target, sr.base_ref))
+        return base_invoke(pre + text, **kw)
 
-    rpb.invoke_kiro = invoke
-    if not hasattr(os, "killpg"):   # Windows: the validator-timeout path kills a process tree
-        os.getpgid = lambda pid: pid                                    # type: ignore[attr-defined]
-        os.killpg = lambda pid, _sig: subprocess.run(                   # type: ignore[attr-defined]
-            ["taskkill", "/F", "/T", "/PID", str(pid)], capture_output=True)
+    return rpb.PlanBuildContext(sr.sid, issue_text(sr), rpb.PROMPTS_DIR, "builder", "reviewer",
+                                run_dir, base_ref=sr.base_ref, repo_dir=sr.target,
+                                invoke=story_invoke, validator=VALIDATOR, **hooks)
 
-    issue = (f"{pre}# {sid}: {meta.get('title', '')}\n\nSource: "
-             f"{os.path.relpath(story['path'], ROOT).replace(os.sep, '/')}\n\n{story['text']}")
-    ok, results, detail = rpb.run_issue(sid, issue)
+
+# --- CLI commands ---------------------------------------------------------------------------
+
+def run(sid: str, scaffold: bool, branch: Optional[str] = None) -> int:
+    import run_plan_build as rpb  # noqa: E402
+    from agents import set_audit_sink  # noqa: E402
+    from audit import AuditSink  # noqa: E402
+
+    sr = prepare(sid, scaffold, branch)
+    if scaffold:
+        print(f"scaffold unlock: protected configs may be ADDED in {sr.target} for this run only")
+    stamp = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    set_audit_sink(AuditSink(f"plan_build-{stamp}", base_dir="agents", trigger_type="plan_build"))
+    pbc = make_context(sr, os.path.join(".harness-runs", f"{stamp}-{sid}"))
+    try:
+        results = rpb.run_pbc(pbc)
+        ok, detail = True, ""
+    except Exception as e:  # noqa: BLE001
+        results, ok, detail = [], False, str(e)
     for r in results:
         print(f"{'ok' if r.ok else 'FAILED'}  {r.kind:12s} {r.name}")
-    rel = os.path.relpath(target, ROOT)
     if not ok:
-        print(f"\n{sid} FAILED: {detail}\nThe work so far is on branch {branch} in {rel}.")
+        print(f"\n{sid} FAILED: {detail}\nThe work so far is on branch {sr.branch} in {sr.target_rel}.")
         return 1
-    print(f"\n{sid} passed the loop on branch {branch} in {rel}.\nNext (human):"
-          + ("" if target == ROOT else
-             f"\n  git -C {rel} push -u origin {branch}   # open a PR in {meta.get('repo')}")
+    meta = load_stories()[sid]["meta"]
+    print(f"\n{sid} passed the loop and is committed on {sr.branch} in {sr.target_rel}.\nNext (human): "
+          "review the commits"
+          + ("" if sr.target == ROOT else
+             f", then  git -C {sr.target_rel} push -u origin {sr.branch}   # open a PR in {meta.get('repo')}")
           + f"\n  after the PR is merged: uv run python harness/run_story.py record {sid}")
     return 0
+
+
+def analyze(sid: str) -> int:
+    import story_analysis  # noqa: E402
+
+    result = story_analysis.run(sid)
+    print(json.dumps({k: result[k] for k in ("confidence", "agent", "readiness", "cap", "ready_to_start",
+                                              "recommendation", "dimensions", "risks", "questions")
+                      if k in result}, indent=2))
+    return 0 if result["ready_to_start"] else 2
 
 
 def record(sid: str) -> int:
@@ -247,9 +346,12 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("list")
+    an = sub.add_parser("analyze", help="readiness + Kiro analysis -> confidence (exit 2 if below 80)")
+    an.add_argument("story")
     r = sub.add_parser("run")
     r.add_argument("story", nargs="?")
     r.add_argument("--next", action="store_true", help="the first runnable story")
+    r.add_argument("--branch", help="branch to create (default story/<id>)")
     r.add_argument("--scaffold", action="store_true",
                    help="human unlock: allow ADDING protected configs (first code in a repo)")
     rec = sub.add_parser("record")
@@ -262,6 +364,8 @@ def main(argv: Optional[List[str]] = None) -> int:
             m = stories[sid]["meta"]
             print(f"{m.get('due', '?'):10} {sid}  {m.get('executor'):6} {m.get('repo'):32} {m.get('title')}")
         return 0
+    if a.cmd == "analyze":
+        return analyze(a.story)
     if a.cmd == "run":
         sid = a.story
         if a.next:
@@ -271,7 +375,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             sid = ids[0]
         if not sid:
             raise SystemExit("name a story id or pass --next")
-        return run(sid, a.scaffold)
+        return run(sid, a.scaffold, a.branch)
     return record(a.story)
 
 
