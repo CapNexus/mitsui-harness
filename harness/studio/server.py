@@ -176,6 +176,11 @@ def resume(rid: str, body: ResumeBody = ResumeBody()) -> dict:
     return {"ok": True}
 
 
+@app.post("/api/runs/{rid}/reset")
+def reset(rid: str) -> dict:
+    return _guard(runner.reset, rid)
+
+
 @app.get("/api/runs/{rid}/diff")
 def diff(rid: str) -> dict:
     r = db.run(rid)

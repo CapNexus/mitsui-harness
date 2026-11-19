@@ -49,6 +49,7 @@ ANALYSIS_STEPS = [
     {"name": "score", "kind": "deterministic"},
 ]
 HUMAN_GATE = {"name": "human_review", "kind": "human"}
+RESETTABLE = ("failed", "stopped", "interrupted", "awaiting_review", "rejected", "queued")
 
 
 class Stopped(Exception):
@@ -242,6 +243,10 @@ class Runner:
                 if s["idx"] >= idx:
                     self.db.update_step(rid, s["idx"], status="pending", detail=None)
         if run["kind"] == "implementation":
+            sr = run_story.StoryRun.from_dict(run["context"]["story_run"])
+            if run_story.git(sr.target, "rev-parse", "--verify", "--quiet", f"refs/heads/{sr.branch}")[0] != 0:
+                raise ValueError(f"branch {sr.branch} no longer exists in {sr.target_rel}, so this run cannot "
+                                 "continue. Use Reset to discard this run and start the story again.")
             try:
                 run_story.resume(run_story.StoryRun.from_dict(run["context"]["story_run"]))
             except SystemExit as e:
@@ -259,6 +264,53 @@ class Runner:
         if proc and proc.poll() is None:
             rpb.kill_tree(proc)
         threading.Thread(target=agents.shutdown_shared_client, daemon=True).start()
+
+    def reset(self, rid: str) -> dict:
+        """Discard an unfinished build so the story can start again from the beginning.
+
+        Leaves the story's work branch (checking out the branch it was created from, and
+        stashing any uncommitted work so nothing is lost), deletes the branch if it still
+        exists, and marks the run `discarded`. Works when the branch is already gone. The
+        old run stays in the history; a new build creates a fresh run and branch."""
+        run = self.db.run(rid)
+        if not run or run["kind"] != "implementation":
+            raise ValueError("unknown implementation run")
+        if self.active:
+            raise ValueError(f"run {self._active} is still active; stop it before resetting")
+        if run["status"] not in RESETTABLE:
+            raise ValueError(f"run is {run['status']}; only an unfinished, failed, stopped or rejected "
+                             "build can be reset")
+        sr = run_story.StoryRun.from_dict(run["context"]["story_run"])
+        notes: List[str] = []
+        g = run_story.git
+        on_branch = g(sr.target, "rev-parse", "--abbrev-ref", "HEAD")[1].strip() == sr.branch
+        if on_branch:
+            if run_story.dirty(sr.target):
+                code, out = g(sr.target, "stash", "push", "--include-untracked", "-m", f"studio reset {rid}")
+                if code != 0:
+                    raise ValueError(f"could not stash the uncommitted work on {sr.branch}: {out.strip()}")
+                notes.append(f"uncommitted work saved in git stash 'studio reset {rid}'")
+            if g(sr.target, "rev-parse", "--verify", "--quiet", f"refs/heads/{sr.base_name}")[0] != 0:
+                raise ValueError(f"cannot leave {sr.branch}: its base branch {sr.base_name} no longer exists. "
+                                 "Check out a branch yourself, then reset again.")
+            code, out = g(sr.target, "checkout", sr.base_name)
+            if code != 0:
+                raise ValueError(f"could not check out {sr.base_name}: {out.strip()}")
+            notes.append(f"checked out {sr.base_name}")
+        code, tip = g(sr.target, "rev-parse", "--verify", "--quiet", f"refs/heads/{sr.branch}")
+        if code == 0:
+            code, out = g(sr.target, "branch", "-D", sr.branch)
+            if code != 0:
+                raise ValueError(f"could not delete {sr.branch}: {out.strip()}")
+            notes.append(f"deleted branch {sr.branch} (was at {tip.strip()[:10]}; recoverable from the reflog)")
+        else:
+            notes.append(f"branch {sr.branch} was already gone")
+        for s in self.db.steps(rid):
+            if s["status"] in ("running",):
+                self.db.update_step(rid, s["idx"], status="pending")
+        self.db.update_run(rid, status="discarded", error="reset by user; start the story again")
+        self.db.event(rid, "warn", "run reset: " + "; ".join(notes))
+        return {"status": "discarded", "notes": notes}
 
     def complete_review(self, rid: str, action: str, note: str = "") -> dict:
         """The human gate after the harness `commit` step: approve (ready to push and open a

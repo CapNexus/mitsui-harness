@@ -249,7 +249,7 @@ function journey() {
   const sub = {
     understand: stuck ? stateLabel(s.state) : "read the story",
     analyze: conf != null ? `${conf}% confidence` : a && ["queued", "running"].includes(a.status) ? "running…" : "not yet",
-    implement: i ? i.status.replace("_", " ") : "not started",
+    implement: i && i.status !== "discarded" ? i.status.replace("_", " ") : "not started",
     review: i?.status === "awaiting_review" ? "your turn" : i?.status === "completed" ? "approved" : "after implement",
     ship: s.state === "done" ? "recorded" : i?.status === "completed" ? "push & PR" : "after review",
   };
@@ -373,10 +373,11 @@ function viewAnalyze() {
 function viewImplement() {
   const st = S.story, s = st.summary, a = latest("analysis"), i = latest("implementation");
   const conf = a?.status === "completed" ? a.confidence : null;
-  if (i && !["completed", "rejected"].includes(i.status)) {
+  if (i && !["completed", "rejected", "discarded"].includes(i.status)) {
     $("#viewbody").innerHTML = `<div class="callout"><b>This story already has a build:</b> ${esc(i.status.replace("_", " "))} on <code>${esc(i.branch)}</code>. Its progress is in Live progress below.</div>
-      <div class="row"><button class="btn primary" id="openLive">Show its progress</button></div>`;
+      <div class="row"><button class="btn primary" id="openLive">Show its progress</button>${["running", "queued"].includes(i.status) ? "" : `<button class="btn danger" id="resetBuild">Reset and start over</button>`}</div>`;
     $("#openLive").onclick = () => openRun(i.id);
+    if ($("#resetBuild")) $("#resetBuild").onclick = () => resetRun(i.id);
     return;
   }
   const scaffoldDefault = ["F02-S02", "F02-S12"].includes(s.id);
@@ -543,7 +544,7 @@ async function refreshRun() {
   const tokens = r.steps.reduce((a, s) => a + s.input_tokens + s.output_tokens, 0);
   const reported = r.steps.some((s) => s.tokens_reported);
   const done = r.steps.filter((s) => ["ok", "skipped"].includes(s.status)).length;
-  const statusText = { queued: "starting", running: "running", awaiting_review: "waiting for your review", completed: "finished", failed: "stopped on a problem", stopped: "stopped by you", interrupted: "interrupted (Studio was restarted)", rejected: "rejected" }[r.status] || r.status;
+  const statusText = { queued: "starting", running: "running", awaiting_review: "waiting for your review", completed: "finished", failed: "stopped on a problem", stopped: "stopped by you", interrupted: "interrupted (Studio was restarted)", rejected: "rejected", discarded: "reset (discarded)" }[r.status] || r.status;
   $("#runtitle").textContent = `${r.kind === "analysis" ? "Analysis" : "Build"} of ${r.story_id}: ${statusText}`;
   $("#runmeta").textContent = [`${done} of ${r.steps.length} steps done`, r.branch && `branch ${r.branch}`,
     `Kiro usage ≈ ${fmt(tokens)} tokens${reported ? "" : " (estimated)"}`, `started ${ago(r.created_at)}`].filter(Boolean).join(" · ");
@@ -562,6 +563,7 @@ async function refreshRun() {
   else if (r.status === "awaiting_review") alert = `<div class="callout"><b>Your turn.</b> Kiro committed the change on <code>${esc(r.branch)}</code>. <a href="#" id="goReview">Review it now</a>.</div>`;
   else if (r.status === "completed" && r.kind === "analysis") alert = `<div class="callout ok"><b>Analysis finished: ${r.confidence}% confidence.</b> <a href="#" id="goAnalysis">See the result</a>.</div>`;
   else if (r.status === "completed") alert = `<div class="callout ok"><b>Approved.</b> <a href="#" id="goShip">Push and open a pull request</a>.</div>`;
+  else if (r.status === "discarded") alert = `<div class="callout warn"><b>This build was reset.</b> Its branch was deleted. Start the story again from Implement.</div>`;
   else if (r.status === "rejected") alert = `<div class="callout bad"><b>Rejected.</b> The commits stay on <code>${esc(r.branch)}</code>.</div>`;
   $("#runAlert").innerHTML = alert;
   const link = (id, view) => { const el = $(id); if (el) el.onclick = async (e) => { e.preventDefault(); if (S.story?.summary.id !== r.story_id) await openStory(r.story_id, view); else go(view); }; };
@@ -580,6 +582,7 @@ async function refreshRun() {
   const canResume = !r.active && ["failed", "stopped", "interrupted"].includes(r.status);
   const canRerun = !r.active && ["failed", "stopped", "interrupted", "awaiting_review"].includes(r.status);
   $("#btnResume").classList.toggle("hidden", !canResume);
+  $("#btnReset").classList.toggle("hidden", r.kind !== "implementation" || r.active || !["failed", "stopped", "interrupted", "awaiting_review", "rejected"].includes(r.status));
   $("#restartBox").classList.toggle("hidden", !canRerun);
   if (canRerun) $("#fromStep").innerHTML = r.steps.filter((s) => s.kind !== "human").map((s) => `<option value="${esc(s.name)}" ${failed && failed.name === s.name ? "selected" : ""}>${esc(stepTitle(s.name))}</option>`).join("");
   if (!r.active) { loadOverview(); if (S.story?.summary.id === r.story_id) refreshStory(); }
@@ -590,6 +593,16 @@ const resumeRun = async (from_step) => {
 };
 $("#btnStop").onclick = async () => { if (!confirm("Stop this run? You can resume it later from the same step.")) return; try { await api(`/api/runs/${S.run}/stop`, { method: "POST" }); } catch (e) { toast(e.message); } };
 $("#btnResume").onclick = () => resumeRun("");
+async function resetRun(rid) {
+  if (!confirm("Reset this build?\n\nThis leaves the story branch and deletes it, with every commit Kiro made on it. Uncommitted work is saved in a git stash. The story then starts again from the beginning.")) return;
+  try {
+    const r = await api(`/api/runs/${encodeURIComponent(rid)}/reset`, { method: "POST" });
+    toast(`Reset. ${r.notes.join("; ")}`, 9000);
+    if (S.run === rid) await refreshRun();
+    await loadOverview(); await refreshStory(); go("implement");
+  } catch (e) { toast(e.message, 9000); }
+}
+$("#btnReset").onclick = () => resetRun(S.run);
 $("#btnRestart").onclick = () => { const s = $("#fromStep").value; if (confirm(`Run "${stepTitle(s)}" and every step after it again? Commits already made stay on the branch.`)) resumeRun(s); };
 setInterval(() => { const r = S.runData; if (r?.active) { const cur = r.steps.find((s) => s.status === "running"); const sp = $("#nowDur"); if (cur && sp) sp.textContent = `(${dur(cur.started_at)})`; } }, 1000);
 
