@@ -72,7 +72,19 @@ def environment() -> dict:
         "parent_dirty": catalog.dirty_files(ROOT)[:20],
         "interrupted_at_start": interrupted,
         "db": db.path,
+        "os": "windows" if os.name == "nt" else ("mac" if sys.platform == "darwin" else "linux"),
+        "submodules": {m: os.path.exists(os.path.join(ROOT, m, ".git")) for m in catalog.SUBMODULES},
     }
+
+
+def _compare_url(target: str, branch: str) -> str:
+    """Web link to open a pull request for `branch` (GitHub and GitHub Enterprise)."""
+    _, url = catalog.git(target, "remote", "get-url", "origin")
+    url = url.strip()
+    if url.startswith("git@"):
+        url = "https://" + url[4:].replace(":", "/", 1)
+    url = url[:-4] if url.endswith(".git") else url
+    return f"{url}/compare/{branch}?expand=1" if url.startswith("http") else ""
 
 
 @app.get("/api/stories/{sid}")
@@ -171,13 +183,18 @@ def diff(rid: str) -> dict:
         raise HTTPException(404, "unknown implementation run")
     target = ROOT if r["target_repo"] in (".", "") else os.path.join(ROOT, r["target_repo"])
     _, stat = catalog.git(target, "diff", "--stat", r["base_ref"])
-    _, log = catalog.git(target, "log", "--format=%h %s", f"{r['base_ref']}..HEAD")
+    _, log = catalog.git(target, "log", "--format=%h %s", f"{r['base_ref']}..{r['branch']}")
     loop = r["context"].get("loop") or {}
     return {"target": r["target_repo"], "branch": r["branch"], "base": r["base_ref"],
             "stat": stat, "commits": [c for c in log.splitlines() if c.strip()],
             "uncommitted": catalog.dirty_files(target),
             "diff": runner_mod.run_story.review_diff(target, r["base_ref"]),
-            "review": loop.get("result:review", ""), "plan": loop.get("plan_file_path", "")}
+            "review": loop.get("result:review", ""), "plan": loop.get("plan_file_path", ""),
+            "push_cmd": ("git push -u origin " if target == ROOT else f"git -C {r['target_repo']} push -u origin ")
+                        + r["branch"],
+            "compare_url": _compare_url(target, r["branch"]),
+            "record_cmd": ("uv run --with-requirements harness/drivers/requirements.txt python "
+                           f"harness/run_story.py record {r['story_id']}") if target != ROOT else ""}
 
 
 @app.post("/api/runs/{rid}/review")
@@ -206,6 +223,10 @@ async def events(rid: str, request: Request, after: int = 0) -> StreamingRespons
                 if state != prev_state:
                     prev_state = state
                     yield f"event: status\ndata: {json.dumps({'status': r['status']})}\n\n"
+            if not batch and (not r or (runner.active != rid and r["status"] not in ("queued", "running"))):
+                # Finished run and every line sent: tell the browser to stop listening.
+                yield "event: end\ndata: {}\n\n"
+                return
             if not batch:
                 await asyncio.sleep(0.4)
 
