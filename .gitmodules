@@ -1,3 +1,6 @@
-[submodule "mitsui-wda"]
-	path = mitsui-wda
-	url = https://github.com/CapNexus/mitsui-wda.git
+[submodule "project-mep-AWS-Code"]
+	path = project-mep-AWS-Code
+	url = https://MEPUSA.ghe.com/MEPUSA/project-mep-AWS-Code.git
+[submodule "project-mep-AWS-Infrastructure"]
+	path = project-mep-AWS-Infrastructure
+	url = https://MEPUSA.ghe.com/MEPUSA/project-mep-AWS-Infrastructure.git
