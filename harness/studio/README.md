@@ -6,18 +6,39 @@ and commit the result yourself.
 
 ## Start
 
-From the repository root, in PowerShell:
+From the repository root:
 
-```powershell
-$env:AEW_AUTO_APPROVE = "1"   # needed to implement; analysis works without it
-uv run --with-requirements harness/studio/requirements.txt python harness/studio/server.py
+| Windows (PowerShell or cmd) | macOS / Linux (Terminal) |
+|---|---|
+| `.\studio` (or double-click `studio.cmd`) | `./studio.sh` |
+| `.\studio 8780` for another port | `./studio.sh 8780` for another port |
+
+The launcher sets `AEW_AUTO_APPROVE=1`, starts the server and opens http://127.0.0.1:8765 in
+your browser. Stop it with Ctrl+C. The server binds to localhost only. Set
+`STUDIO_NO_BROWSER=1` to skip opening the browser. Both launchers run:
+
+```
+AEW_AUTO_APPROVE=1  uv run --with-requirements harness/studio/requirements.txt python harness/studio/server.py
 ```
 
-Open http://127.0.0.1:8765. The server binds to localhost only. Set `STUDIO_PORT` to change
-the port.
+## One-time setup
 
-Prerequisites: `kiro-cli` on PATH (signed in), `uv`, Git for Windows (the validator runs in
-Git Bash, not WSL), and Node.js LTS with npm for stories in the two code submodules.
+| | Windows | macOS |
+|---|---|---|
+| Git | Git for Windows (provides Git Bash) | Xcode Command Line Tools or `brew install git` |
+| uv | `winget install astral-sh.uv` | `brew install uv` |
+| Node.js LTS with npm | `winget install OpenJS.NodeJS.LTS` | `brew install node` |
+| Kiro CLI | install, then sign in | install, then sign in |
+| Submodules | `git submodule update --init` | `git submodule update --init` |
+
+Open a new terminal after installing so the tools are on PATH; the top bar of the page shows
+a green badge for `kiro-cli`, `AEW_AUTO_APPROVE` and `npm` when each is found.
+
+The validator (`scripts/validate.sh`) runs in bash on both platforms: Git Bash on Windows
+(never WSL's bash), `/bin/bash` on macOS. It is written for bash 3.2, which macOS ships, and
+for both GNU and BSD tools. Set `HARNESS_BASH` to use a different bash. Line endings are
+pinned by `.gitattributes` (`*.sh`, `*.py` LF; `*.cmd` CRLF), so a Windows checkout with
+`core.autocrlf=true` does not break the scripts.
 
 ## What it does
 
