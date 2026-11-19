@@ -221,3 +221,7 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# harness run output (run_story.py / drivers)
+.harness-runs/
+/agents/

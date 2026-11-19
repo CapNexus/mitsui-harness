@@ -1,0 +1,494 @@
+ID,Parent,Level,Title,Work Type,Effort,Data Class,Consequence,Validation Tier,Maturity,Review,Depends On,Sources,Acceptance Criteria,Scope,Problems
+F1,,feature,"Mobilization, plan and governance",,,,,full,drafted,full,,F1,,,
+F01-S01,F1,pbi,Set up the dependency tracker and RAID log,checker-script,S,internal,recommendation,light,drafted,light,,F01-S01,"When scripts/check-dependency-register.sh runs, the script shall exit 0 only if DEP-01 to DEP-29 all exist in user-stories/dependencies/README.md and each has a non-empty owner, needed-by date, type and status.
+The RAID log at user-stories/raid-log.md shall have sections for Risks, Assumptions, Issues and Decisions.
+The RAID log shall be seeded with Feature List Section 5 (gaps 1 to 9) as issues and Section 7 (questions 1 to 7) as open decisions, each with an owner and a date.",,2 open question(s); not grounded: no codebase supplied
+F01-S02,F1,pbi,Confirm kick-off date and named owners with backups,human-gated-step,XS,internal,recommendation,light,drafted,light,F01-S01,F01-S02,"When Mitsui replies to the owner table sent to Noah Jackson, the reply shall confirm the kick-off date of Mon Nov 16 in writing and be saved in user-stories/evidence/F01/.
+When owners are confirmed, the dependency register and the RAID log shall each record a named owner and a named backup for DEP-01 to DEP-06 and DEP-25, DEP-26, DEP-29.
+The command scripts/check-dependency-register.sh --require-backup shall exit 0 for DEP-01 to DEP-06 and DEP-25, DEP-26, DEP-29.",,2 open question(s); not grounded: no codebase supplied
+F01-S03,F1,pbi,Create the shared Teams channel and confirm CapNexus access,human-gated-step,XS,internal,recommendation,light,drafted,light,F01-S02,F01-S03,"When Mitsui sends invitations from the guest invitation list, each of the five CapNexus engineers shall receive one and confirm receipt by reply.
+When an engineer opens the shared Teams channel, the engineer shall be able to post a message, with a screenshot of the test post saved in user-stories/evidence/F01/.
+If a CapNexus engineer still lacks access when the due date passes, then the RAID log shall record a slipped DEP-29 with the date.",,2 open question(s); not grounded: no codebase supplied
+F01-S04,F1,feature,Submit Deliverable 1 and record the review clock,,,,,full,drafted,full,,F01-S04,,,
+F01-S05,F1,pbi,Send the weekly status report,checker-script,M,internal,recommendation,light,drafted,light,F01-S01,F01-S05,"When scripts/generate-status-report.sh --week <n> runs, the script shall produce a file with sections for work done, work planned, dependencies due this week with their status, slipped items with cause, and open decisions.
+When a report is ready, Mike (PM) shall review it and send it by Monday 3:00 PM Eastern to every kick-off attendee, with the sent email saved in user-stories/evidence/F01/status-reports/.
+If a week has no report, then scripts/check-status-reports.sh shall log the miss in the RAID log.",,3 open question(s); not grounded: no codebase supplied
+F01-S06,F1,pbi,Log slipped dependencies and shift plan dates,checker-script,M,internal,recommendation,light,drafted,light,F01-S01,F01-S06,"When a dependency's needed-by date has passed without status resolved, scripts/check-overdue.sh shall list it as overdue, and with --today 2026-11-17 shall exit non-zero and list DEP-01 and any other unresolved item due on or before that date.
+If a dependency is marked slipped and its slip start date, cause or days late is empty, then scripts/check-dependency-register.sh shall fail.
+When the shift helper (shift-plan.sh) runs for a slipped dependency, the helper shall shift plan dates by the number of days late, with a dry-run output available as evidence.",,2 open question(s); not grounded: no codebase supplied
+F2,,feature,AWS landing zone and POC account as code,,,,,full,drafted,full,,F2,,,
+F02-S01,F2,pbi,Run the pre-flight checks and confirm services in us-east-1,deployed-state-verification,S,internal,recommendation,light,drafted,light,,F02-S01,"When Mitsui sends the cross-account role ARN, CapNexus shall assume the role and record the caller identity (account ID only) in evidence/F02/preflight/.
+The pre-flight record shall contain answers to the Appendix B pre-flight questions.
+The service availability table shall state, for us-east-1, availability of AgentCore Gateway, Identity, Runtime and Policy, S3 Tables with Lake Formation, identity-aware Athena workgroups and Claude model access.",,3 open question(s); not grounded: no codebase supplied
+F02-S02,F2,pbi,Create the CDK app and pipeline skeleton,cdk-infrastructure,M,internal,recommendation,light,drafted,light,,F02-S02,"When the build runs on a clean checkout with placeholder values, dependencies shall install, lint shall pass and cdk synth shall succeed.
+The config file shall mirror the parameters in config/parameters.md so that a stack reads Mitsui values from config, not from code.
+The pipeline shall use CDK Pipelines with an AWS CodeConnections source whose connection ARN is a placeholder in the sandbox.",,3 open question(s); not grounded: no codebase supplied
+F02-S03,F2,pbi,Build the KMS key and log encryption baseline,cdk-infrastructure,S,internal,recommendation,light,drafted,light,F02-S02,F02-S03,"When the baseline stack is synthesized, it shall contain a customer-managed KMS key with rotation on, an alias, and a retain policy on stack deletion.
+The key policy shall allow Secrets Manager and CloudWatch Logs in the POC account to use the key and shall allow no principal outside the POC account.
+When a stack creates a secret or log group through the shared baseline helpers, the secret and the log group shall use this key.",,1 open question(s); not grounded: no codebase supplied
+F02-S04,F2,pbi,Build the AWS Budgets alert,cdk-infrastructure,S,internal,recommendation,light,drafted,light,F02-S02,F02-S04,"When the budget stack is synthesized, it shall create a monthly cost budget for the amount in budget_monthly_usd.
+The budget notifications shall email billing_contact_email at 80% of actual spend and at 100% of forecast spend.
+If budget_monthly_usd or billing_contact_email is still TBD when synth runs for the POC stage, then synth shall fail with a message naming the parameter.",,1 open question(s); not grounded: no codebase supplied
+F02-S05,F2,pbi,Write and test the teardown script,cdk-infrastructure,M,internal,recommendation,light,drafted,light,F02-S02,F02-S05,"When scripts/teardown.sh runs with --dry-run, the script shall list every stack it would delete in dependency order, match the stacks listed by cdk list, and change nothing.
+When the script runs for real in the sandbox, it shall empty S3 buckets first, delete all POC stacks, and leave Control Tower resources unchanged.
+After a real run, aws cloudformation list-stacks shall show no active POC stacks and no change to stacks named AWSControlTower* or StackSet-AWSControlTower*.",,2 open question(s); not grounded: no codebase supplied
+F02-S06,F2,pbi,Launch the Control Tower landing zone with Region-deny exceptions,cdk-infrastructure,M,internal,recommendation,light,drafted,light,F02-S01,F02-S06,"When the landing zone is launched, the launch shall use the Control Tower landing zone API with a manifest file stored in the repository, after Venkat and Soma approve the manifest.
+The landing zone shall use us-east-1 as home Region, and the Region-deny control shall allow us-east-1, us-east-2 and us-west-2.
+When the landing zone is ready, Control Tower shall have created the Log Archive and Audit accounts from the DEP-03 emails and the Security OU, and the Workloads OU shall exist.",,3 open question(s); not grounded: no codebase supplied
+F02-S07,F2,pbi,Create the POC workload account and enable IAM Identity Center,human-gated-step,M,internal,recommendation,light,drafted,light,F02-S06,F02-S07,"When Account Factory creates the POC account from account_email_poc, the account shall be enrolled in the Workloads OU with no drift.
+When Identity Center is enabled, it shall be the organization instance in us-east-1 with the identity source left as the default directory.
+When the setup is complete, CapNexus engineers shall have temporary Identity Center users that reach the accounts after the cross-account role is deleted on Fri Nov 20.",,3 open question(s); not grounded: no codebase supplied
+F02-S08,F2,pbi,Prove a Bedrock Claude call works from the POC account,acceptance-test,S,internal,recommendation,light,drafted,light,F02-S06;F02-S07,F02-S08,"When scripts/smoke/bedrock-invoke.sh --profile poc calls Claude through the US cross-region inference profile, the call shall return a response with no access or Region error and the script shall exit 0.
+When Mitsui has submitted the Anthropic first-use form and the quota request, the smoke test output and quota values shall be saved in evidence/F02/bedrock/.",,2 open question(s); not grounded: no codebase supplied
+F02-S09,F2,feature,Deploy the baseline through the pipeline and test the budget alert,,,,,full,drafted,full,,F02-S09,,,
+F02-S10,F2,pbi,Confirm the temporary cross-account role is deleted,customer-approval,XS,internal,recommendation,light,drafted,light,F02-S06;F02-S07,F02-S10,"When F02-S06 and F02-S07 are done and Mike asks Mitsui to delete the role, Noah Jackson or Matt Schiefelbein shall confirm deletion in writing, saved in evidence/F02/cross-account-role/.
+When a CapNexus engineer tries to assume the deleted role, aws sts assume-role with the old role ARN shall return AccessDenied, with the output saved as evidence.
+When Mitsui reviews CloudTrail for the role's use, Mitsui shall send a review confirmation saved in evidence/F02/cross-account-role/.",,2 open question(s); not grounded: no codebase supplied
+F02-S11,F2,pbi,Export Control Tower drift and compliance evidence,checker-script,S,internal,recommendation,light,drafted,light,F02-S06;F02-S07;F02-S10,F02-S11,"When scripts/export-control-tower-status.sh runs, the script shall write landing zone status and drift, each enabled control with its compliance status, and the POC account enrollment status to one dated file and exit 0.
+When the script runs with --assert on Dec 17, the drift state shall be IN_SYNC, all controls shall be compliant and the POC account shall be enrolled, with output saved as evidence/F02/control-tower/2026-12-17.md.",,2 open question(s); not grounded: no codebase supplied
+F3,,feature,Private connectivity (VPN and PrivateLink),,,,,full,drafted,full,,F3,,,
+F03-S01,F3,pbi,Collect the network values and change tickets from Mitsui,human-gated-step,S,confidential,recommendation,standard,drafted,full,F01-S01,F03-S01,"When Matt Schiefelbein returns the Appendix C sheet, it shall contain the Palo Alto model and PAN-OS version, public IP, routing type (and ASN for BGP), VPC CIDR, on-prem CIDRs (SQL Server subnets only), and the IP, instance and fixed port of each SQL Server, saved in evidence/F03/appendix-c.md.
+When the sheet is returned, the values shall be recorded in config/parameters.md in place of the TBD entries.
+When Mitsui confirms CAB ticket numbers for VPN, firewall and SQL changes, the ticket numbers and the DEP-04 change-freeze dates shall be recorded in the RAID log.",,3 open question(s); not grounded: no codebase supplied
+F03-S02,F3,pbi,Build the workload VPC with isolated DMS and tool subnets,cdk-infrastructure,M,internal,recommendation,light,drafted,light,F02-S02,F03-S02,"When the network stack is synthesized with vpc_cidr, it shall create the VPC with DMS, tool and endpoint subnets inside that CIDR, and the DMS subnets shall span two Availability Zones.
+While route tables are evaluated, only the DMS route table shall hold routes to onprem_cidrs, and the tool and endpoint route tables shall have no route to them.
+The VPC shall have no internet gateway and no NAT gateway.",,2 open question(s); not grounded: no codebase supplied
+F03-S03,F3,pbi,Build the site-to-site VPN to the Palo Alto,cdk-infrastructure,M,confidential,recommendation,standard,drafted,full,F03-S02,F03-S03,"When the network stack is synthesized, it shall contain a virtual private gateway attached to the VPC, a customer gateway at palo_alto_public_ip, and one VPN connection.
+Where palo_alto_routing_type is static, the stack shall create a static route for each entry in onprem_cidrs and enable route propagation only for the DMS route table.
+Where palo_alto_routing_type is bgp, the customer gateway shall use the BGP ASN and the stack shall create no static routes.",,2 open question(s); not grounded: no codebase supplied
+F03-S04,F3,pbi,Build the PrivateLink endpoints,cdk-infrastructure,S,internal,recommendation,light,drafted,light,,F03-S04,"When the endpoint stack is synthesized, the stack shall contain interface endpoints for Bedrock runtime, Athena, CloudWatch Logs and Secrets Manager with private DNS enabled, and an S3 gateway endpoint on the DMS route table.
+The endpoint security group shall allow inbound TCP 443 only from the VPC's own subnets.
+When a service is added to the endpoint list in config, the stack shall create an additional endpoint with no code change.",,2 open question(s); not grounded: no codebase supplied
+F03-S05,F3,feature,Deploy the network to the POC account and send the Palo Alto configuration,,,,,full,drafted,full,,F03-S05,,,
+F03-S06,F3,pbi,Validate both tunnels and TCP reachability from the DMS subnet,acceptance-test,S,internal,recommendation,light,drafted,light,F03-S05,F03-S06,"When the VPN status check runs, scripts/check-vpn-tunnels.sh shall exit 0 only when both tunnels report UP.
+When the probe deployed in the DMS subnet connects to each host and fixed port in sql_server_endpoints, scripts/tcp-probe.sh --subnet dms shall exit 0 and report success for MEPWELL, SDEDBPROD and MEPS_ARIES.",,2 open question(s); not grounded: no codebase supplied
+F03-S07,F3,pbi,Prove the assistant has no path to the databases and save the evidence,acceptance-test,S,confidential,recommendation,standard,drafted,full,F03-S06,F03-S07,"When the route export runs, scripts/export-routes.sh --assert shall exit 0 and write the export only if the DMS route table is the only route table with routes to onprem_cidrs or the virtual private gateway.
+When the probe deployed in the tool subnet connects to each SQL Server host and port, every connection shall fail, as checked by scripts/tcp-probe.sh --subnet tools --expect-fail.",,2 open question(s); not grounded: no codebase supplied
+F03-S08,F3,pbi,"Prove Bedrock, Athena and logs work over PrivateLink with no internet",acceptance-test,S,internal,recommendation,light,drafted,light,F03-S05,F03-S08,"When the test resolves the Bedrock runtime, Athena and Logs hostnames in the tool subnet, each shall resolve to a private IP inside vpc_cidr, as checked by scripts/privatelink-check.sh --dns.
+When the test calls Claude on Bedrock, runs SELECT 1 on Athena and writes a log event from the tool subnet, all three calls shall succeed, as checked by scripts/privatelink-check.sh --calls.",,2 open question(s); not grounded: no codebase supplied
+F4,,feature,Daily one-way data copy into S3 Tables,,,,,full,drafted,full,,F4,,,
+F04-S01,F4,feature,Pre-fill and sign off the approved table list,,,,,full,drafted,full,,F04-S01,,,
+F04-S02,F4,pbi,"Define DMS, staging bucket and source secrets as code",cdk-infrastructure,M,confidential,authorized_action,standard,drafted,full,,F04-S02,"When the CDK app is synthesized, the stack shall contain a DMS replication configuration, source endpoints for MEPWELL, SDEDBPROD and MEPS_ARIES, and an S3 staging bucket.
+The DMS resources shall run only in the DMS subnet.
+The source credentials shall be Secrets Manager secrets encrypted with the customer-managed KMS key, created without secret values.",,2 open question(s); not grounded: no codebase supplied
+F04-S03,F4,pbi,Generate DMS table mappings from the approved list,config-generator,M,confidential,recommendation,standard,drafted,full,F04-S02,F04-S03,"When the generator runs, it shall include only rows with decision Approved or Approved with masking, selected by explicit table name and never by wildcard.
+The generated mappings shall include transformation rules that lowercase schema, table and column names.
+Where sdedbprod_mode is compress_state0, the generator shall select base tables; where it is evw_views, it shall select the _evw views; where it is undecided, it shall leave SDEDBPROD out of the task.
+The generated task settings shall use limited-LOB mode with a size cap of 64 KB until a different cap is provided.",,2 open question(s); not grounded: no codebase supplied
+F04-S04,F4,pbi,Build sandbox source databases with synthetic data,data-pipeline,M,internal,recommendation,light,drafted,light,,F04-S04,"When make sandbox-up and make sandbox-test run, the sandbox shall hold the three databases with mixed-case table and column names, and a cross-database join through the crosswalk shall return at least one row.
+The sandbox shall include a versioned feature class with an _evw view and a geometry column, a table with a sql_variant column, and one shape value above the LOB cap.
+The sandbox shall produce inventory CSVs in the same format as scripts A3 and A4.
+The sandbox shall provide a read-only login as defined in Appendix A2.",,2 open question(s); not grounded: no codebase supplied
+F04-S05,F4,pbi,Load staged files into S3 Tables with a name map,data-pipeline,M,confidential,authorized_action,standard,drafted,full,F04-S04,F04-S05,"When staged files exist for approved tables, the job shall replace each approved table in S3 Tables with a full load.
+When the job loads a table, it shall write rows to wda_meta.name_map with database, source schema, source table, source column, target table and target column.
+If a staged file has no approved row, then the job shall skip it, log a warning and not create the table.
+The Athena workgroup shall enforce the per-query scan cutoff from athena_scan_cutoff_gb.",,2 open question(s); not grounded: no codebase supplied
+F04-S06,F4,pbi,Compare row counts after each load,data-pipeline,S,confidential,recommendation,standard,drafted,full,F04-S05,F04-S06,"When all counts match after a load, the check shall publish LoadSucceeded = 1 and TablesMismatched = 0 and write one ok row per table to wda_meta.load_runs.
+If any table count differs between the DMS statistics and S3 Tables, then the check shall publish LoadSucceeded = 0 and TablesMismatched equal to the number of mismatched tables, and write a mismatch row for each of them to wda_meta.load_runs.
+Where the DMS statistics are not sufficient, the check shall run COUNT(*) on the source through the read-only login.",,2 open question(s); not grounded: no codebase supplied
+F04-S07,F4,pbi,Add load alarms and the email topic,cdk-infrastructure,S,internal,recommendation,light,drafted,light,F04-S02,F04-S07,"When the CDK app is synthesized, it shall contain alarms for DMS task failed or stopped, partial load, missed load (no LoadSucceeded data point within 2 hours after the window end) and SDEDBPROD skipped, each with the SNS topic as its alarm action.
+The SNS topic shall be encrypted with the customer-managed KMS key.
+The SNS topic shall have an email subscription to alarm_distribution_list.",,2 open question(s); not grounded: no codebase supplied
+F04-S08,F4,pbi,Orchestrate and schedule the daily load,data-pipeline,M,confidential,authorized_action,standard,drafted,full,F04-S05;F04-S06,F04-S08,"When the EventBridge schedule fires at the start of load_window, the state machine shall check SDEDBPROD currency, start the DMS full-load tasks, run the load job, run the row-count check, and call the catalog update hook if the schema changed, in that order.
+If sdedbprod_mode is undecided or SDEDBPROD is not current, then the state machine shall skip SDEDBPROD and publish the SDEDBPROD-skipped metric.
+While the date is in load_blackout_dates, the schedule shall not start a run.
+The state machine shall time out at the length of the window.
+Until F5 delivers the catalog update hook, the hook shall be a no-op.",,1 acceptance criteria are not EARS ('... shall ...'); 2 open question(s); not grounded: no codebase supplied
+F04-S09,F4,feature,Connect to Mitsui sources and run the first full loads,,,,,full,drafted,full,,F04-S09,,,
+F04-S10,F4,pbi,Decide the SDEDBPROD approach and prove current edits load,human-gated-step,S,internal,recommendation,light,drafted,light,F04-S03,F04-S10,"When the Nov 23 meeting concludes, the decision record shall state compress_state0 or evw_views and name the GIS admin.
+If no decision exists by the Nov 23 meeting, then sdedbprod_mode shall remain undecided and SDEDBPROD shall stay out of the load.
+When the GIS admin makes a test edit, the next load shall contain that edit.",,2 open question(s); not grounded: no codebase supplied
+F04-S11,F4,feature,Schedule the load in the agreed window and reach four clean runs,,,,,full,drafted,full,,F04-S11,,,
+F04-S12,F4,feature,Run the partial-load fault test and reach a stable load,,,,,full,drafted,full,,F04-S12,,,
+F04-S13,F4,feature,Run the unattended window and export the evidence,,,,,full,drafted,full,,F04-S13,,,
+F5,,feature,Data catalog with SME descriptions,,,,,full,drafted,full,,F5,"Where join hints are stored (column comment text or Glue column parameters) is decided in F05-S03, and F8's `describe_columns` must read the same place. Soma reviews.",,
+F05-S01,F5,pbi,Pre-fill the description sheet and send it to the SMEs,config-generator,S,internal,recommendation,light,drafted,light,,F05-S01,"When scripts/prefill-descriptions.* runs on the approved list or the inventory, it shall write config/descriptions.yaml with database, table, column and data type filled in for every listed table.
+The script shall mark every drafted description with source: draft.
+Where the approved list is not signed by Nov 25, the script shall use the inventory.",,2 open question(s); not grounded: no codebase supplied
+F05-S02,F5,pbi,Capture the crosswalk and join rules from the SMEs,human-gated-step,S,internal,recommendation,light,drafted,light,,F05-S02,"When config/crosswalk.yaml is written from the session notes, it shall contain a join path for each of the three database pairs, each naming the crosswalk table, the key columns and any format conversion.
+Where a key needs a format conversion, the file shall state the conversion, for example API-10 to API-14.
+When the join paths are written, an SME shall review them.",,2 open question(s); not grounded: no codebase supplied
+F05-S03,F5,pbi,Register tables in the catalog and load descriptions,data-pipeline,M,internal,recommendation,light,drafted,light,F04-S05,F05-S03,"When the loader runs, the loader shall register every table in approved_table_list in the Glue Data Catalog using the target names from wda_meta.name_map.
+When the loader runs, the loader shall write table comments and column comments from config/descriptions.yaml.
+When a column is a key column in config/crosswalk.yaml, the loader shall write a join hint on that column that names the crosswalk table.
+If a description has source: draft, then the loader shall prefix the comment with ""DRAFT:"".
+When the loader runs again with the same inputs, the loader shall leave the catalog unchanged.
+The loader shall document in the README whether join hints are stored in comment text or in Glue column parameters.",,2 open question(s); not grounded: no codebase supplied
+F05-S04,F5,pbi,Detect schema changes after each load,data-pipeline,M,internal,recommendation,light,drafted,light,F05-S03;F04-S08,F05-S04,"When a loaded table has a new column, the step shall register the column with the comment ""DRAFT: no SME description yet"" and add it to the missing_descriptions list.
+When a loaded table has a removed or retyped column, the step shall update the catalog and keep the old description in a change log.
+When any schema change is found, the step shall publish a SchemaChanged metric with the table name.
+When the SchemaChanged metric is published, the alarm on it shall notify the SNS topic from F04-S07.",,2 open question(s); not grounded: no codebase supplied
+F05-S05,F5,pbi,Register the real tables and load the first descriptions,deployed-state-verification,S,internal,recommendation,light,drafted,light,F04-S09;F05-S02;F05-S03,F05-S05,"When the signed approved list and the first loads exist and the loader runs in the POC account, the system shall have every approved table and column in the Glue Data Catalog.
+When the descriptions received by Nov 30 are imported and loaded, the system shall show those tables and columns with their descriptions.
+While a description has not been received, the system shall show draft text for it and list it as missing.",,3 open question(s); not grounded: no codebase supplied
+F05-S06,F5,pbi,Complete the descriptions and prove coverage,checker-script,M,internal,recommendation,light,drafted,light,F05-S05,F05-S06,"When the coverage script runs against the frozen question set, the script shall report each table and column used by the question set as described or as an approved exception.
+When the remaining SME descriptions are received, the loader shall load them as table and column comments.
+If a description is missing, then the system shall list it as missing until Noah Jackson approves it as an exception.
+While the describe_columns tool from F8 is not deployed, the coverage check shall run against the Glue API and be repeated once F8 is live.",,2 open question(s); not grounded: no codebase supplied
+F6,,feature,Identity federation (Entra to AWS),,,,,full,drafted,full,,F6,,,
+F06-S01,F6,pbi,Confirm Entra prerequisites and run federation planning session,human-gated-step,S,internal,recommendation,light,drafted,light,,F06-S01,"When the session is booked, the agent shall prepare user-stories/evidence/F06/session-1-pack.md listing the steps from item 5.2, the seven group names from entra_groups, the three app registrations from item 5.4 and the open questions.
+When the session is held, the team shall have Matt Schiefelbein's written confirmation of the Entra P1 licence and that the UPN equals the primary email.",,2 open question(s); not grounded: no codebase supplied
+F06-S02,F6,pbi,Create the Entra groups and app registrations,human-gated-step,S,confidential,authorized_action,standard,drafted,full,F06-S01,F06-S02,"When the Entra administrator completes session 2, the tenant shall contain the seven security groups listed in entra_groups with flat membership.
+When the app registrations are created, the tenant shall contain three registrations with admin consent granted, and WDA-Clients shall be a public client.
+The harness shall not receive any secret value; a human shall enter the bot client secret and, if secret, the WDA-Clients ID into Secrets Manager.",,2 open question(s); not grounded: no codebase supplied
+F06-S03,F6,pbi,Switch Identity Center to Entra with SAML and SCIM,cdk-infrastructure,M,confidential,authorized_action,standard,drafted,full,F06-S02,F06-S03,"When the identity-source switch is done in the management account, IAM Identity Center shall use Entra ID as its identity source with SCIM provisioning.
+When the stack is deployed, the system shall have the permission sets and group-to-account assignments defined as code.
+When the switch is complete, each CapNexus engineer shall be able to sign in to the portal with an Entra account.
+While a CapNexus engineer has no working Entra guest account, the switch shall not be performed.",,2 open question(s); not grounded: no codebase supplied
+F06-S04,F6,pbi,Build the trusted token issuer and identity-aware Athena workgroup as code,cdk-infrastructure,M,internal,recommendation,light,drafted,light,,F06-S04,"When the stack is synthesized with sandbox values, the stack shall create a trusted token issuer with the URL from entra_issuer_url and the claim mapping.
+When the stack is synthesized, the stack shall create an identity-aware Athena workgroup with a per-query scan cutoff of athena_scan_cutoff_gb.
+When the issuer URL or audience parameter changes, the stack shall change only configuration and not code.
+The stack shall be addable to the F2 CDK app without changes to the app.",,2 open question(s); not grounded: no codebase supplied
+F06-S05,F6,pbi,Deploy the trusted token issuer for the Mitsui Entra tenant,deployed-state-verification,S,confidential,authorized_action,standard,drafted,full,F06-S02;F06-S03;F06-S04,F06-S05,"When the pipeline deploys with the real values in config/parameters.md, the trusted token issuer shall use the Mitsui tenant issuer URL and map the email claim.
+When a Mitsui test user obtains a token for the WDA-API audience, the token exchange with the trusted token issuer shall succeed.",,3 open question(s); not grounded: no codebase supplied
+F06-S06,F6,pbi,Spike identity propagation to Athena in the sandbox,checker-script,M,internal,recommendation,light,drafted,light,F06-S04,F06-S06,"When two sandbox users in different groups each run the same SELECT through the identity-aware workgroup with their own token, the system shall show each query under that user's identity in Athena query history or CloudTrail.
+The spike shall produce a reusable script, scripts/test-identity-propagation.sh, that F06-S07 runs against the POC account.
+When the spike ends, the team shall have a written findings report for Soma to review.",,3 open question(s); not grounded: no codebase supplied
+F06-S07,F6,pbi,Test identity propagation in the POC account and decide the identity mode,acceptance-test,S,confidential,recommendation,standard,drafted,full,F06-S05;F06-S06,F06-S07,"When the F06-S06 script runs against the POC account with a Mitsui test user, the system shall produce a test report showing whether queries run under the signed-in user's identity.
+When the test result is known, Soma shall set identity_mode to propagated or group_fallback and record the decision in the RAID log.
+If identity_mode is group_fallback, then the system shall log the user's identity at the application layer.
+If the fallback is used, then Noah Jackson shall accept it in writing by Fri Dec 4.",,2 open question(s); not grounded: no codebase supplied
+F06-S08,F6,pbi,"Review Conditional Access for pilot, test and IT/PMO users",human-gated-step,S,internal,recommendation,light,drafted,light,F06-S02,F06-S08,"When Matt Schiefelbein's policy list is reviewed, the review file user-stories/evidence/F06/conditional-access-review.md shall list each policy that applies to the WDA groups and apps and mark it OK, risk or blocking.
+When scripts/check-ca-review.sh runs, the script shall exit non-zero if any row lacks one of the three marks.",,2 open question(s); not grounded: no codebase supplied
+F7,,feature,Data access control and column masking,,,,,full,drafted,full,,F7,,,
+F07-S01,F7,pbi,Build Lake Formation table grants by Entra group as code,config-generator,M,confidential,recommendation,standard,drafted,full,,F07-S01,"When the code is synthesized from a matrix file, the system shall grant SELECT and describe access on each permitted table to each permitted group.
+Where identity_mode is propagated, the system shall grant to the Identity Center groups.
+Where identity_mode is group_fallback, the system shall grant to one IAM role per Entra group named wda-grp-<group>.
+While the matrix is unsigned, the system shall use a sandbox matrix with dummy tables in the three databases.",,2 open question(s); not grounded: no codebase supplied
+F07-S02,F7,pbi,Build the column-masking data filter as code,config-generator,S,confidential,recommendation,standard,drafted,full,F07-S01,F07-S02,"When the stack is synthesized with masked_column in the matrix, the system shall create a data filter on that table that includes all columns except the masked one.
+When the stack is synthesized, the system shall grant the data filter to every permitted group except sg-wda-econ-sensitive.
+When the stack is synthesized, the system shall grant the full table to sg-wda-econ-sensitive.",,2 open question(s); not grounded: no codebase supplied
+F07-S03,F7,pbi,Pre-fill and sign the masking and access matrix (Appendix E3),customer-approval,S,confidential,recommendation,standard,drafted,full,,F07-S03,"When the approved table list is available, the agent shall pre-fill Appendix E3 with table names and data types and propose a masked column from the candidate fields.
+When Mitsui signs the matrix, the repo shall hold the signed document as evidence and config/access-matrix.yaml as its machine form.
+If Mitsui has not signed by Dec 4, then the proposed matrix shall remain in use and the gap shall be logged.",,3 open question(s); not grounded: no codebase supplied
+F07-S04,F7,pbi,Apply the access matrix in the POC account,deployed-state-verification,S,confidential,authorized_action,standard,drafted,full,F07-S01;F07-S02;F06-S03,F07-S04,"When the pipeline deploys the proposed matrix on Dec 2, the POC account shall hold the grants and masking filter defined by that matrix.
+When the signed matrix is available, the pipeline shall redeploy it and the POC account shall hold the grants defined by the signed matrix.
+If identity_mode is undecided on Dec 2, then the pipeline shall deploy propagated and allow a switch by config change.",,2 open question(s); not grounded: no codebase supplied
+F07-S05,F7,pbi,Build the A/B/C permission test harness,acceptance-test,M,confidential,recommendation,standard,drafted,full,F07-S01;F07-S02,F07-S05,"When the harness runs with an access matrix, the harness shall generate expected results per user including tables visible and masked column visibility.
+When the harness runs through direct Athena and through the Gateway, the harness shall compare actual results with the expected results and report each difference.
+The harness shall obtain tokens interactively at run time and shall not store them.
+The harness shall use an expected-results file that the Teams, Claude Code and Claude Desktop runs can reuse.",,2 open question(s); not grounded: no codebase supplied
+F07-S06,F7,pbi,"Create test users A, B, C and run the first permission test",acceptance-test,M,confidential,recommendation,standard,drafted,full,F07-S04;F07-S05;F06-S03,F07-S06,"When the Entra administrator creates the test users, User A shall be in all permitted groups and sg-wda-econ-sensitive, User B shall be in permitted groups but not sg-wda-econ-sensitive, and User C shall be in no group.
+When the users are created, all three shall appear in Identity Center.
+When the permission test runs through Athena, the system shall produce a report in user-stories/evidence/F07/.
+While F8 is not deployed in the POC account, the test shall run the Athena entry point only and log the gap.",,3 open question(s); not grounded: no codebase supplied
+F07-S07,F7,pbi,Prove Lake Formation refuses writes sent directly to Athena,acceptance-test,S,internal,recommendation,light,drafted,light,F07-S01,F07-S07,"When INSERT, UPDATE, DELETE, MERGE, CREATE TABLE AS, DROP TABLE and ALTER TABLE are sent to Athena through the identity-aware workgroup by a user in a permitted group, Lake Formation shall refuse each with an access error.
+When the refusals are complete, the table row counts shall be unchanged from before the test.
+Where identity_mode is group_fallback, the script shall run the same checks using the group roles.",,2 open question(s); not grounded: no codebase supplied
+F8,,feature,MCP tool layer behind AgentCore Gateway and Policy,,,,,full,drafted,full,,F8,,,
+F08-S01,F8,pbi,"Define the tool contract, limits and names",documentation,M,internal,recommendation,light,drafted,light,,F08-S01,"When the contract is written, docs/tool-contract.md and schemas/tools/*.json shall define list_tables, describe_columns, sample_rows and run_select with inputs, outputs, limits and errors.
+The contract shall read all limits and timeouts from config/parameters.md at deploy time and shall not hard-code them.
+The contract shall state how each tool behaves under identity_mode propagated and group_fallback.
+The contract shall use the name run_select everywhere and not run_select_query.",,2 open question(s); not grounded: no codebase supplied
+F08-S02,F8,pbi,Build the four read-only tool Lambdas,cdk-infrastructure,M,confidential,recommendation,standard,drafted,full,,F08-S02,"The system shall provide one Lambda per tool for list_tables, describe_columns, sample_rows and run_select, matching the tool contract from F08-S01.
+When a tool returns table or column descriptions, the system shall read them from the Glue Data Catalog and, until SME descriptions arrive, from the placeholder descriptions in sme_descriptions_file.
+If a submitted statement is not a single SELECT or contains a write keyword, then the system shall refuse it before it reaches Athena.
+While running in the sandbox, the system shall pass its tests against dummy tables in the three databases and the sandbox OIDC provider.
+Where identity_mode is propagated or fallback, the system shall run correctly in both modes.",,4 open question(s); not grounded: no codebase supplied
+F08-S03,F8,pbi,Publish the tools through AgentCore Gateway with a JWT authorizer,cdk-infrastructure,S,confidential,recommendation,standard,drafted,full,F08-S02,F08-S03,"When the Gateway code is synthesized, the system shall define four Lambda targets named as in the tool contract and a JWT authorizer using entra_issuer_url and wda_api_audience (verify: make test-gateway passes).
+When an MCP client lists tools on the sandbox Gateway with a valid token, the system shall list exactly the four tools (verify: scripts/test-gateway.sh --env sandbox --case list-tools exits 0).",,2 open question(s); not grounded: no codebase supplied
+F08-S04,F8,pbi,"Enforce SELECT-only, row limits and timeouts with AgentCore Policy",cdk-infrastructure,S,confidential,recommendation,standard,drafted,full,F08-S03,F08-S04,"When the policy code is synthesized, the system shall allow only list_tables, describe_columns, sample_rows and run_select, with limit and timeout values taken from the parameters (verify: make test-policy passes).
+If a request contains a write statement such as INSERT or UPDATE, then the system shall refuse it and write the refusal to the log.
+If a rule cannot be expressed in AgentCore Policy, then the system shall enforce it in the tool (F08-S02) and the gap shall be recorded.",,2 open question(s); not grounded: no codebase supplied
+F08-S05,F8,pbi,Place the tools in the VPC with no path to the source databases,cdk-infrastructure,M,confidential,recommendation,standard,drafted,full,F08-S02,F08-S05,"While the tool subnets are deployed, the system shall have no route to the virtual private gateway and shall allow outbound HTTPS only to the VPC endpoints.
+The system shall provide interface endpoints to Athena and logs for the tool subnets.
+When isolation is probed from the tool side, the system shall show no connection to the on-premises database endpoints.
+The team shall record whether an AgentCore interface endpoint exists in us-east-1 (Feature List Section 5, gap 8) for use by F10.",,3 open question(s); not grounded: no codebase supplied
+F08-S06,F8,pbi,Deploy the Gateway and tools to the POC account with Entra,human-gated-step,M,confidential,recommendation,standard,drafted,full,F08-S03;F08-S04;F08-S05,F08-S06,"When the pipeline deploys with the POC config, the system shall configure the Gateway authorizer with the Mitsui Entra issuer and the WDA-API audience (verify: scripts/test-gateway.sh --env poc --case config exits 0).
+If a request has no token or a wrong token, then the Gateway shall reject it.",,3 open question(s); not grounded: no codebase supplied
+F9,,feature,Well Data Assistant on AgentCore Runtime,,,,,full,drafted,full,,F9,,,
+F10,,feature,Microsoft Teams channel bot,,,,,full,drafted,full,,F10,,,
+F11,,feature,IT/PMO access from Claude Code and Claude Desktop,,,,,full,drafted,full,,F11,,,
+F12,,feature,Audit trail and monitoring,,,,,full,drafted,full,,F12,,,
+F13,,feature,"Evaluation, security tests and pilot",,,,,full,drafted,full,,F13,,,
+F14,,feature,"Readout, handover and runbook",,,,,full,drafted,full,,F14,,,
+F01-S04.1,F01-S04,pbi,Create the D1 draft checker script,checker-script,S,internal,recommendation,light,drafted,light,,F01-S04,"When `scripts/check-d1-draft.sh` is run on a D1 draft, the system shall verify that the project plan, dependency owners and question set outline headings are present.
+When `scripts/check-d1-draft.sh` is run on a D1 draft, the system shall verify that the outline has about 7 questions per database and 9 joins.
+If a required heading or question count is missing, the system shall exit non-zero and name what is missing.
+When the draft meets all checks, the system shall exit 0.",,2 open question(s); not grounded: no codebase supplied
+F01-S04.2,F01-S04,pbi,Draft D1 from the task list and Feature List,docs,S,internal,recommendation,light,drafted,light,F01-S04.1,F01-S04,"When the agent drafts D1 from `task-list/` and the Feature List, the system shall produce a draft containing the project plan with dates.
+When the agent drafts D1, the system shall include the dependency owners in the draft.
+When the agent drafts D1, the system shall include a question set outline with about 7 questions per database and 9 joins.
+When the draft is complete, the system shall pass `scripts/check-d1-draft.sh`.",,not grounded: no codebase supplied
+F01-S04.3,F01-S04,pbi,Submit reviewed D1 with the acceptance form,human-gated-step,XS,confidential,authorized_action,standard,drafted,full,F01-S04.2,F01-S04,"When Mike has reviewed and approved D1, the system shall present D1 and the acceptance form for Mike to submit to Noah Jackson.
+When D1 is submitted, the system shall require the submission email and the acceptance form to be saved as evidence.
+While DEP-23 is unresolved, the system shall use Noah Jackson as the signer.",,not grounded: no codebase supplied
+F01-S04.4,F01-S04,pbi,Record the review clock in the RAID log,chore,XS,internal,recommendation,light,drafted,light,F01-S04.3,F01-S04,"When D1 is submitted, the system shall record the review clock start date in the RAID log row for D1.
+When the start date is recorded, the system shall record the end date as 8 business days later.
+When `scripts/check-raid-log.sh --require-clock D1` is run and both dates are present, the system shall exit 0.
+If either date is missing, the system shall exit non-zero.",,2 open question(s); not grounded: no codebase supplied
+F01-S04.5,F01-S04,pbi,Brief the acceptance owner on the clock and rejection path,customer-approval,XS,internal,recommendation,light,drafted,light,F01-S04.3,F01-S04,"When D1 is submitted, the system shall require that Noah Jackson is told that 8 business days of silence counts as acceptance.
+When D1 is submitted, the system shall require that Noah Jackson is told how to reject D1 in writing.
+When the owner has been briefed, the system shall require confirmation recorded in the Week 1 status call notes.",,not grounded: no codebase supplied
+F02-S09.1,F02-S09,pbi,Create and authorize the CodeConnections connection to Mitsui's repository,human-gated-step,S,internal,recommendation,light,drafted,light,F02-S02,F02-S09,"When the CodeConnections connection to Mitsui's repository is created and a Mitsui Git administrator authorizes the connection app, the system shall report the connection status as AVAILABLE.
+When a commit is pushed to the main branch of the repository, the system shall start a pipeline execution for that commit.
+When the connection is verified, the system shall have the get-connection output and the pipeline execution history entry saved in evidence/F02/pipeline/.",,1 open question(s); not grounded: no codebase supplied
+F02-S09.2,F02-S09,pbi,Deploy the baseline stacks through the pipeline and confirm a second run is a no-op,deployed-state-verification,M,internal,authorized_action,standard,drafted,full,F02-S09.1;F02-S02;F02-S03;F02-S04,F02-S09,"When the pipeline runs against an empty POC account, the system shall deploy the KMS, logging and budget stacks with no manual step.
+When the pipeline runs a second time with no code change, the system shall make no changes to the account.
+When `cdk diff` is run against the POC account after the run, the system shall report no difference.
+When the deployment completes, the system shall have the pipeline run link and the `cdk diff` output saved in evidence/F02/pipeline/.",,not grounded: no codebase supplied
+F02-S09.3,F02-S09,pbi,Write and run scripts/check-kms-usage.sh,checker-script,S,internal,recommendation,light,drafted,light,F02-S03;F02-S09.2,F02-S09,"When `scripts/check-kms-usage.sh` is run and every Secrets Manager secret and log group in the account uses the customer-managed key, the system shall exit with code 0.
+If any Secrets Manager secret or log group does not use the customer-managed key, the system shall exit non-zero and list each non-compliant resource.
+When the script is run after the pipeline deployment, the system shall have its output saved in evidence/F02/pipeline/.",,not grounded: no codebase supplied
+F02-S09.4,F02-S09,pbi,Send a test budget notification and get the billing contact's confirmation,human-gated-step,XS,internal,recommendation,light,drafted,light,F02-S04;F02-S09.2,F02-S09,"When a test notification is sent from the deployed budget, the system shall deliver it to the billing contact.
+When the billing contact confirms receipt, the system shall have the screenshot or reply saved in evidence/F02/pipeline/.",,not grounded: no codebase supplied
+F03-S05.1,F03-S05,pbi,"Deploy the network, VPN and endpoint stacks to the POC account through the pipeline",cdk-infrastructure,M,internal,authorized_action,standard,drafted,full,F03-S01;F03-S02;F03-S03;F03-S04;F02-S09,F03-S05,"When the pipeline runs with the real values for vpc_cidr, onprem_cidrs, palo_alto_public_ip and palo_alto_routing_type, the system shall deploy the network, VPN and endpoint stacks to the POC account.
+When the deployment finishes, the system shall store the pipeline run link and the cdk diff output in evidence/F03/deploy/.
+If any of the four real network values is missing, the system shall stop the pipeline run without deploying.",,not grounded: no codebase supplied
+F03-S05.2,F03-S05,pbi,Verify the POC deployment is idempotent with a second run,deployed-state-verification,XS,internal,recommendation,light,drafted,light,F03-S05.1,F03-S05,"When the pipeline runs a second time after the first successful deployment, the system shall make no changes to the network, VPN and endpoint stacks.
+When cdk diff runs against the POC account after the second run, the system shall report no difference.
+When the check completes, the system shall save the cdk diff output in evidence/F03/deploy/.",,not grounded: no codebase supplied
+F03-S05.3,F03-S05,pbi,Generate the Palo Alto configuration for Mitsui's model and PAN-OS version,config-generator,S,confidential,recommendation,standard,drafted,full,F03-S05.1,F03-S05,"When scripts/get-palo-alto-config.sh runs against the deployed VPN connection, the system shall write a configuration file for Mitsui's Palo Alto model and PAN-OS version and exit 0.
+While the configuration file contains pre-shared keys, the system shall keep the file and the keys out of the repository.
+If the VPN connection is not deployed, the system shall exit non-zero without writing a file.",scripts/get-palo-alto-config.sh,not grounded: no codebase supplied
+F03-S05.4,F03-S05,pbi,Send the Palo Alto configuration to Matt and get his confirmation of receipt,human-gated-step,XS,confidential,recommendation,standard,drafted,full,F03-S05.3,F03-S05,"When the configuration file has been generated, the system shall send it to Matt through the agreed secure channel.
+When Matt confirms receipt, the system shall record the confirmation.
+While the file is in transit and after delivery, the system shall not store the file or its pre-shared keys in the repository.",,not grounded: no codebase supplied
+F03-S05.5,F03-S05,pbi,Record InfoSec review status and CAB ticket before traffic opens,customer-approval,XS,internal,recommendation,light,drafted,light,,F03-S05,"When traffic is about to open, the system shall record the architecture review status and any CAB ticket in the RAID log.
+When Mike confirms in the RAID log that InfoSec has the architecture summary and that the CAB ticket (if needed) is approved, the system shall treat the gate as passed.
+If the InfoSec confirmation or a required CAB approval is missing, the system shall keep traffic closed.",,not grounded: no codebase supplied
+F04-S01.1,F04-S01,pbi,Generate the pre-filled approved table list from inventory CSVs,config-generator,M,internal,recommendation,light,drafted,light,,F04-S01,"When scripts/prefill-approved-tables.sh runs with --inventory pointing at the returned inventory CSVs for the three databases, the system shall write config/approved-tables.yaml with one entry per inventory table holding database, schema, table, row count, size and an empty decision field.
+When the script runs with --dry-run, the system shall print one row per inventory table and shall not write config/approved-tables.yaml.
+When the A4 column report shows a table with a sql_variant or sparse column, or reports it as temporal or memory-optimized, the system shall mark that table unsupported and record the reason.
+While the masking decision (F7, DEP-16) is open, the system shall leave the Allowed groups column empty.
+When the script test runs with a sample CSV that includes one sql_variant table, the system shall pass only if that table is marked unsupported.",,not grounded: no codebase supplied
+F04-S01.2,F04-S01,pbi,Add the checker for the completed approved table list,checker-script,S,internal,recommendation,light,drafted,light,F04-S01.1,F04-S01,"When every row in config/approved-tables.yaml has a decision of Approved, Approved with masking or Not approved, and the MEPWELL well hub and crosswalk tables are Approved, the system shall exit 0.
+If any row has an empty decision, the system shall exit non-zero and name the row.
+If the MEPWELL well hub or a crosswalk table is missing from the list or is not Approved, the system shall exit non-zero and name the table.
+If a decision value is not one of the three allowed values, the system shall exit non-zero.",,1 open question(s); not grounded: no codebase supplied
+F04-S01.3,F04-S01,pbi,Run the generator on the returned inventory and collect owner decisions,human-gated-step,S,internal,recommendation,light,drafted,light,F04-S01.1;F04-S01.2,F04-S01,"When the DBAs return the A1, A3 and A4 CSVs for all three databases, the team shall save them (metadata only) in evidence/F04/inventory/ and set DEP-08 to resolved in the register.
+When the returned CSVs are saved, the system shall produce config/approved-tables.yaml by running scripts/prefill-approved-tables.sh against evidence/F04/inventory/.
+When the data owners return the list, every row shall have a decision of Approved, Approved with masking or Not approved, and scripts/check-approved-tables.sh shall exit 0.
+If the check fails, the team shall return the named rows to the data owners and re-run the check.",,not grounded: no codebase supplied
+F04-S01.4,F04-S01,pbi,Get the completed list signed and close DEP-10,customer-approval,XS,internal,recommendation,light,drafted,light,F04-S01.3,F04-S01,"When scripts/check-approved-tables.sh exits 0 on the completed list, the team shall send the list to Noah Jackson for signature.
+When Noah Jackson signs the list, the team shall save the signed copy in evidence/F04/approved-table-list/.
+When the signed copy is saved, the team shall set DEP-10 to resolved in the register.
+If the signed list differs from config/approved-tables.yaml, the system shall treat the sign-off as incomplete until the file matches the signed copy.",,not grounded: no codebase supplied
+F04-S09.1,F04-S09,pbi,Record InfoSec approval of the data copy before the first load,customer-approval,XS,confidential,recommendation,standard,drafted,full,,F04-S09,"When InfoSec's written approval of the data copy (DEP-05) is received, the system shall store it under evidence/F04/first-loads/ before any first load is started.
+If the DEP-05 approval is not on file, the system shall block the start of the first full load.",,not grounded: no codebase supplied
+F04-S09.2,F04-S09,pbi,"Replace placeholders with real endpoints, approved table list and secrets",human-gated-step,S,confidential,recommendation,standard,drafted,full,,F04-S09,"When the real SQL Server endpoint values are supplied, the system shall use them in place of the sql_server_endpoints placeholders in the deployed configuration.
+When the signed approved table list is supplied, the system shall use it as the approved_table_list in config/approved-tables.yaml.
+When a human enters the three secret values from the DBAs' secure channel, the system shall hold them only in Secrets Manager.
+The system shall not expose the credential values to the harness, its logs or the evidence files.",,not grounded: no codebase supplied
+F04-S09.3,F04-S09,pbi,Confirm the DMS login is not privileged (DBA check),human-gated-step,XS,confidential,recommendation,standard,drafted,full,F04-S09.2,F04-S09,"When the DBAs run the Appendix A2 check, the system shall record that IS_SRVROLEMEMBER('sysadmin', 'dms_wda_ro') returns 0.
+When the DBAs run the Appendix A2 check in each database, the system shall record that the login holds only db_datareader, VIEW DATABASE STATE and VIEW DEFINITION.
+When the DBA sends the query output, the system shall save it as evidence under evidence/F04/first-loads/.",,not grounded: no codebase supplied
+F04-S09.4,F04-S09,pbi,Verify DMS test connection succeeds for all three endpoints,deployed-state-verification,XS,internal,recommendation,light,drafted,light,F04-S09.2;F04-S09.3,F04-S09,"When DMS test connection runs with the real endpoint values and secrets, the system shall report status successful for the MEPWELL, MEPS_ARIES and SDEDBPROD endpoints in aws dms describe-connections.
+When the test connection completes, the system shall save the describe-connections output under evidence/F04/first-loads/.",,not grounded: no codebase supplied
+F04-S09.5,F04-S09,pbi,Run first full loads for MEPWELL and MEPS_ARIES and check approved-only tables,data-pipeline,M,confidential,authorized_action,standard,drafted,full,F04-S09.1;F04-S09.4,F04-S09,"Where the InfoSec approval is on file and all endpoints test successfully, when the first full loads run, the system shall load MEPWELL first and then MEPS_ARIES into S3 Tables.
+When the first loads finish, the S3 Tables namespace shall contain exactly the approved tables and the name map.
+When make check-approved-only compares S3 Tables with config/approved-tables.yaml, the system shall exit 0, and the output shall be saved as evidence.
+The system shall not load SDEDBPROD in this run.",,not grounded: no codebase supplied
+F04-S09.6,F04-S09,pbi,Verify source and target row counts for the first loads,deployed-state-verification,S,internal,recommendation,light,drafted,light,F04-S09.5,F04-S09,"When the row-count check runs after the first loads, the system shall report matching source and target counts for every loaded table.
+When the row-count check completes, wda_meta.load_runs shall show status ok for every table of the run.
+When the check passes, the system shall save the load_runs export for Nov 25 under evidence/F04/first-loads/.",,not grounded: no codebase supplied
+F04-S11.1,F04-S11,pbi,Record the DBA-confirmed load window and blackout dates,human-gated-step,XS,internal,recommendation,light,drafted,light,,F04-S11,"When the DBAs' written confirmation of the load window and blackout dates is received, the system shall hold `load_window` and `load_blackout_dates` in `config/parameters.md` with status `set`.
+When the parameters are set, the system shall record the source of the values (the DBA confirmation) in the RAID log.
+When `scripts/check-raid-log.sh` is run after the values are recorded, the system shall exit with code 0.
+If the DBA confirmation has not been received, the system shall keep both parameters unset and shall not mark this item complete.",,not grounded: no codebase supplied
+F04-S11.2,F04-S11,pbi,Deploy the load schedule to the POC account and confirm the first unattended run,cdk-infrastructure,S,internal,authorized_action,standard,drafted,full,F04-S11.1,F04-S11,"When the schedule is deployed to the POC account, the system shall define an EventBridge schedule that fires at the start of `load_window` in the `America/Chicago` time zone.
+When `aws scheduler get-schedule` is run for the deployed schedule, the system shall return a schedule expression and time zone that match `load_window`.
+While a date in `load_blackout_dates` applies, the system shall not start a scheduled load.
+When the schedule fires for the first time (Dec 1 or Dec 2), the system shall start the Step Functions execution with no manual start.",,1 open question(s); not grounded: no codebase supplied
+F04-S11.3,F04-S11,pbi,Show four consecutive clean scheduled loads and export the evidence,deployed-state-verification,S,internal,recommendation,light,drafted,light,F04-S11.2,F04-S11,"When `scripts/clean-load-streak --as-of 2026-12-04` is run, the system shall print a value of 4 or more.
+When the streak is computed, the system shall count only runs started by the schedule with no manual start.
+When the evidence is exported, the system shall store the schedule output and the `load_runs` export for Dec 1 to Dec 4 under `evidence/F04/schedule/`.
+If the streak is below 4, the system shall report the shortfall and shall not mark this item complete.",,1 open question(s); not grounded: no codebase supplied
+F04-S12.1,F04-S12,pbi,Stop the DMS task mid-load on a manual run and capture the alarm transition,deployed-state-verification,S,internal,recommendation,light,drafted,light,F04-S07;F04-S11,F04-S12,"When a manual load run in the POC account has its DMS task stopped mid-load, the system shall move the partial-load alarm to ALARM.
+When the partial-load alarm enters ALARM, the system shall send an email to the address in alarm_distribution_list.
+When the fault test completes, the system shall have its `aws cloudwatch describe-alarm-history` output showing the transition saved under `evidence/F04/fault-test/`.",,not grounded: no codebase supplied
+F04-S12.2,F04-S12,pbi,Get a Mitsui recipient to confirm the alarm email arrived,human-gated-step,XS,internal,recommendation,light,drafted,light,F04-S12.1,F04-S12,"When the partial-load alarm email has been sent to the real alarm_distribution_list, the system shall record a confirmation of receipt from a Mitsui recipient.
+When receipt is confirmed, the system shall have the received email saved under `evidence/F04/fault-test/`.
+If the distribution list is still the CapNexus on-call placeholder, the system shall not mark the gate as passed.",,not grounded: no codebase supplied
+F04-S12.3,F04-S12,pbi,Verify the next scheduled load recovers after the stopped run,deployed-state-verification,S,internal,recommendation,light,drafted,light,F04-S12.1,F04-S12,"When the next scheduled load completes after the stopped run, the system shall report matching row counts between source and target.
+When the next scheduled load completes after the stopped run, the system shall show `ok` in `wda_meta.load_runs` for every table.
+When the recovery check completes, the system shall have the `load_runs` query output for that run saved under `evidence/F04/fault-test/`.",,not grounded: no codebase supplied
+F04-S12.4,F04-S12,pbi,Confirm five clean daily loads from Dec 7 to Dec 11,acceptance-test,S,internal,recommendation,light,drafted,light,F04-S07;F04-S11;F04-S12.3,F04-S12,"When `scripts/clean-load-streak --as-of 2026-12-11` runs after the scheduled loads of Dec 7 to Dec 11, the system shall report a streak of at least 5.
+When the streak check completes, the system shall have its output saved under `evidence/F04/stable-load/`.",,not grounded: no codebase supplied
+F04-S13.1,F04-S13,pbi,Get written freeze confirmations and enter the window in the change-freeze calendar,human-gated-step,S,internal,recommendation,light,drafted,light,,F04-S13,"When the notice is sent on Mon Dec 7, the system shall record written confirmations from Mitsui DBAs and the network team that the servers and VPN do not change from Dec 14 to Dec 25, saved under evidence/F04/unattended-window/.
+When the confirmations are received, the system shall show the Dec 14 to Dec 25 window in the change-freeze calendar.",,not grounded: no codebase supplied
+F04-S13.2,F04-S13,pbi,Get Mitsui's written acceptance of the next-business-day check of the Dec 25 load,customer-approval,XS,internal,recommendation,light,drafted,light,,F04-S13,"When the plan to check the Dec 25 load on the next business day is sent to Mitsui, the system shall hold Mitsui's written acceptance of that plan dated before Dec 14, saved under evidence/F04/unattended-window/.",,not grounded: no codebase supplied
+F04-S13.3,F04-S13,pbi,Create the load-freeze check script and the freeze tag,checker-script,S,internal,recommendation,light,drafted,light,,F04-S13,"When the freeze starts on Dec 14, the system shall have a freeze tag in the code repository.
+When scripts/check-load-freeze.sh is run with --since 2026-12-14, the system shall list every deploy of the load pipeline after the tag.
+If a deploy after the freeze tag is not linked to a RAID issue ID for a failed load, the script shall exit non-zero.
+When the script is run, the system shall save its output under evidence/F04/unattended-window/.",,not grounded: no codebase supplied
+F04-S13.4,F04-S13,pbi,Create the load-evidence export script,checker-script,M,internal,recommendation,light,drafted,light,,F04-S13,"When scripts/export-load-evidence.sh is run with --from and --to dates, the system shall write the DMS task history, Step Functions executions, load_runs and alarm history for that range to files.
+If any execution in the range was started manually, the script shall exit non-zero and name the execution.
+When no execution in the range was started manually, the script shall exit zero.",,not grounded: no codebase supplied
+F04-S13.5,F04-S13,pbi,Run the Dec 14 to Dec 24 evidence export on Dec 24,deployed-state-verification,S,internal,recommendation,light,drafted,light,F04-S13.1;F04-S13.3;F04-S13.4,F04-S13,"When the export runs on Thu Dec 24 with --from 2026-12-14 --to 2026-12-24, the system shall save the DMS task history, Step Functions executions, load_runs and alarm history for that range under evidence/F04/unattended-window/.
+If any execution in Dec 14 to Dec 24 was started manually, the export shall fail and the evidence shall not be marked complete.
+When the export completes, the system shall save the output of scripts/check-load-freeze.sh --since 2026-12-14 next to the export.",,not grounded: no codebase supplied
+F04-S13.6,F04-S13,pbi,Check the Dec 25 holiday load on the next business day and add it to the evidence,human-gated-step,XS,internal,recommendation,light,drafted,light,F04-S13.2;F04-S13.5,F04-S13,"When the next business day after Dec 25 arrives, the system shall have Mitsui DBAs' written confirmation of the Dec 25 load result saved under evidence/F04/unattended-window/.
+When the confirmation is saved, the system shall add the Dec 25 load result to the evidence set exported on Dec 24.",,not grounded: no codebase supplied
+F9.1,F9,pbi,Deploy the assistant on AgentCore Runtime with Claude on Bedrock,cdk-infrastructure,M,internal,recommendation,light,drafted,light,,F9,"When a plain-English message is sent to the AgentCore Runtime endpoint, the system shall return a model-generated response from Claude on Bedrock.
+When the stack is deployed, the system shall create the AgentCore Runtime resources from infrastructure code with no manual console steps.
+If the Claude model access is not approved in the account, then the deployment check shall fail with a message naming the missing approval.",,not grounded: no codebase supplied
+F9.2,F9,pbi,Attach Bedrock Guardrails to the assistant,cdk-infrastructure,S,internal,recommendation,light,drafted,light,F9.1,F9,"When the assistant calls Claude on Bedrock, the system shall include the configured Guardrail identifier and version on the call.
+Where the Guardrail prompt-attack filter is enabled, the system shall apply it to user input and to tool results passed back to the model.
+If the Guardrail identifier is missing from the deployed configuration, then the deployment check shall fail.",,not grounded: no codebase supplied
+F9.3,F9,pbi,Wire the four tools and pass the asking user's token,config-generator,M,confidential,recommendation,standard,drafted,full,F9.1,F9,"When the assistant calls a tool, the system shall send the asking user's token with the call.
+If the asking user's token is absent or expired, then the system shall refuse to call the tool and shall tell the user to sign in again.
+The system shall expose only the four tools to the model and shall reject any call to another tool name.",,not grounded: no codebase supplied
+F9.4,F9,pbi,Table discovery and SQL authoring instructions,config-generator,S,internal,recommendation,light,drafted,light,F9.3,F9,"When a question names no table, the system shall list candidate tables and read their descriptions before writing SQL.
+When a column's values are unclear, the system shall sample values from that column before using it in a filter.
+When the assistant has chosen tables, the system shall write a single SQL statement for the question.",,not grounded: no codebase supplied
+F9.5,F9,pbi,Cross-database join rules through the MEPWELL crosswalk,config-generator,S,internal,recommendation,light,drafted,light,F9.4,F9,"When a question needs data from more than one of MEPWELL, SDEDBPROD and MEPS_ARIES, the system shall join them on well identifiers through the MEPWELL crosswalk.
+When the crosswalk has no match for a well identifier, the system shall say so in the answer instead of guessing a match.
+Where an example question is provided, the system shall use its join pattern for similar questions.",,not grounded: no codebase supplied
+F9.6,F9,pbi,Answer format: short table plus the SQL that ran,config-generator,XS,internal,recommendation,light,drafted,light,F9.4,F9,"When a query succeeds, the system shall return a short table of the results.
+When a query succeeds, the system shall include the exact SQL that ran in the answer.
+If a result has more rows than the display limit, then the system shall show the first rows and state the total row count.",,1 open question(s); not grounded: no codebase supplied
+F9.7,F9,pbi,Refuse non-SELECT requests before they reach Athena,checker-script,S,confidential,recommendation,standard,drafted,full,F9.3,F9,"If a request asks to insert, update, delete or alter data, then the system shall refuse in the answer.
+If a generated statement is not a single SELECT statement, then the system shall block it before it is sent to Athena.
+When a statement is blocked, the system shall log the blocked statement and the reason.",,not grounded: no codebase supplied
+F9.8,F9,pbi,Acceptance tests: plain-English and cross-database questions,acceptance-test,M,confidential,recommendation,standard,drafted,full,F9.5;F9.6,F9,"When the test asks a plain-English question, the system shall return a short table and the SQL that ran.
+When the test asks a question spanning at least two of the three databases, the system shall return the result the SME recorded as expected.
+If the result differs from the SME-expected result, then the test shall fail and shall show both results.",,not grounded: no codebase supplied
+F9.9,F9,pbi,Acceptance tests: write refusal and prompt injection,acceptance-test,S,confidential,recommendation,standard,drafted,full,F9.2;F9.7,F9,"When the test asks to delete the rows for a named well, the system shall refuse in the answer and no write statement shall reach Athena.
+When a data value contains a prompt-injection string, the system shall make no tool call outside the four tools.
+If any tool call outside the four tools or any write statement is recorded during the tests, then the test shall fail.",,not grounded: no codebase supplied
+F9.10,F9,pbi,Verify in the audit log that tools ran as the asking user,deployed-state-verification,S,confidential,recommendation,standard,drafted,full,F9.3,F9,"When a test user asks a question, the system shall record the tool calls in the audit log under that user's identity.
+If an audit log entry shows a shared service identity for a tool call, then the check shall fail.
+When the check passes, the system shall write the matching log entries to the test report.",,not grounded: no codebase supplied
+F9.11,F9,pbi,Quota request and 15-user concurrency test,deployed-state-verification,S,internal,recommendation,light,drafted,light,F9.1,F9,"When 15 concurrent users each submit a question, the system shall return answers with no Bedrock throttling errors.
+If any Bedrock throttling error is recorded during the test, then the test shall fail and shall report the count.
+Where the quota increase has not been granted, the test shall not run and shall report the pending request.",,not grounded: no codebase supplied
+F10.1,F10,pbi,Provision the single-tenant Azure Bot resource,human-gated-step,S,internal,recommendation,light,drafted,light,,F10,"When the Azure Bot resource is created, the system shall be registered as a single-tenant bot in a Mitsui Azure subscription.
+When the bot registration is complete, the system shall have the Teams and Web Chat channels enabled.
+When the bot app credentials are issued, the system shall store them in a secrets store and not in source control.",,not grounded: no codebase supplied
+F10.2,F10,pbi,Expose the bot messaging endpoint behind AWS WAF,cdk-infrastructure,M,internal,recommendation,light,drafted,light,F10.1,F10,"When a request is sent to `/api/messages`, the system shall route it through the AWS WAF web ACL.
+When the endpoint is deployed, the system shall serve `/api/messages` over HTTPS only.
+When the Azure Bot is configured, the system shall use the deployed endpoint URL as its messaging endpoint.",,not grounded: no codebase supplied
+F10.3,F10,pbi,Validate the Bot Framework JWT on every request,chore,M,confidential,recommendation,standard,drafted,full,F10.2,F10,"If a POST to `/api/messages` has no Bot Framework JWT, then the system shall reject it with a 401 response before invoking the assistant.
+If a POST to `/api/messages` has an invalid or expired Bot Framework JWT, then the system shall reject it with a 401 response before invoking the assistant.
+If a JWT has an audience or issuer that does not match the single-tenant bot, then the system shall reject the request.
+When a request carries a valid Bot Framework JWT, the system shall pass it on for processing.",,not grounded: no codebase supplied
+F10.4,F10,pbi,Forward questions with the asker's identity and return a table plus SQL,chore,M,confidential,recommendation,standard,drafted,full,F10.3;F9;F6,F10,"When an authenticated message arrives, the system shall forward the question and the asker's identity to the assistant.
+When the assistant returns a result, the system shall reply with a short table and the SQL that produced it.
+While the asker lacks permission for a table, the system shall exclude that table from the answer.
+If the assistant returns an error, then the system shall reply with a short error message and no partial restricted data.",,not grounded: no codebase supplied
+F10.5,F10,pbi,Build the Teams app package and install it in the pilot channel,config-generator,S,internal,recommendation,light,drafted,light,F10.1,F10,"When the Teams app package is generated, the system shall reference the single-tenant bot's app id in its manifest.
+When the package is generated, the system shall declare channel scope only for team channels.
+When a Teams admin has approved the app, the system shall be installed in the pilot channel.",,not grounded: no codebase supplied
+F10.6,F10,pbi,"Verify pilot users are enrolled in the Entra groups, Team and channel",deployed-state-verification,S,confidential,recommendation,standard,drafted,full,F10.5,F10,"When the enrolment check runs, the system shall report that all 15 pilot users are members of the required Entra groups.
+When the enrolment check runs, the system shall report that all 15 pilot users are members of the Team and the pilot channel.
+If any pilot user is missing from a group, the Team or the channel, then the system shall list that user and the missing membership.",,not grounded: no codebase supplied
+F10.7,F10,pbi,"Acceptance tests: Web Chat, pilot channel and permissions",acceptance-test,M,confidential,recommendation,standard,drafted,full,F10.4;F10.5;F10.6,F10,"When a test question is sent in Web Chat, the system shall return an answer.
+When a Mitsui test user asks a question in the pilot channel after the app is installed, the system shall reply with a table plus SQL.
+When User C asks a question that touches restricted tables, the system shall return no restricted tables.
+When a POST to `/api/messages` has an invalid or missing Bot Framework JWT, the system shall reject it before it reaches the assistant.
+When all 15 pilot users have been enrolled, the system shall show that each completed at least one question.",,not grounded: no codebase supplied
+F10.8,F10,pbi,Measure answer latency on the frozen question set and report it,acceptance-test,S,internal,recommendation,light,drafted,light,F10.4;F10.5,F10,"When the frozen question set is run, the system shall record the end-to-end latency of each answer.
+When the run completes, the system shall report the median and p90 latency in the dashboard report.
+If the median or p90 latency is 60 seconds or more, then the system shall mark the latency check as failed.",,not grounded: no codebase supplied
+F11.1,F11,pbi,InfoSec written approval of the connection method,customer-approval,S,confidential,recommendation,standard,drafted,full,,F11,"When the connection method is submitted to InfoSec, the system shall have a written approval on file that names the connection method for both Claude Code and Claude Desktop.
+Where returned rows reach the Claude client and its model provider, the written approval shall state that InfoSec accepts this data flow.
+If Claude Desktop calls from Anthropic's cloud, the approval shall state that InfoSec accepts an internet-reachable Gateway protected by the JWT authorizer.",,not grounded: no codebase supplied
+F11.2,F11,pbi,Setup guide for adding the Gateway in Claude Code and Claude Desktop,documentation,S,internal,recommendation,light,drafted,light,F11.1,F11,"When a user follows the guide for Claude Code, the system shall show the Gateway as a configured MCP server.
+When a user follows the guide for Claude Desktop, the system shall show the Gateway as a configured MCP server.
+The guide shall state that sign-in uses the pre-registered WDA-Clients app because Entra has no dynamic client registration.
+The guide shall list the required group, `sg-wda-itpmo-tools`, and the Mitsui-managed laptop requirement.",,not grounded: no codebase supplied
+F11.3,F11,pbi,Verify Claude Code sign-in and the four tools with a recorded session,acceptance-test,S,confidential,recommendation,standard,drafted,full,F11.1;F11.2,F11,"When a member of `sg-wda-itpmo-tools` on a Mitsui-managed laptop adds the Gateway in Claude Code, the system shall sign the user in through Entra with MFA applied.
+When the signed-in user invokes list, describe, sample and SELECT from Claude Code, the system shall return results for each tool.
+When the test is run, the system shall produce a recorded session that shows sign-in and all four tool calls.",,not grounded: no codebase supplied
+F11.4,F11,pbi,Verify Claude Desktop sign-in and the four tools with a recorded session,acceptance-test,S,confidential,recommendation,standard,drafted,full,F11.1;F11.2,F11,"When a member of `sg-wda-itpmo-tools` on a Mitsui-managed laptop adds the Gateway in Claude Desktop, the system shall sign the user in through Entra with MFA applied.
+When the signed-in user invokes list, describe, sample and SELECT from Claude Desktop, the system shall return results for each tool.
+When the test is run, the system shall produce a recorded session that shows sign-in and all four tool calls.",,not grounded: no codebase supplied
+F11.5,F11,pbi,Verify group enforcement and permission parity with Teams,acceptance-test,S,confidential,recommendation,standard,drafted,full,F11.3;F11.4,F11,"If a user outside `sg-wda-itpmo-tools` attempts to use the Gateway tools from Claude Code, the system shall deny the request.
+If a user outside `sg-wda-itpmo-tools` attempts to use the Gateway tools from Claude Desktop, the system shall deny the request.
+When Users A, B and C run the same requests from Claude Code, the system shall return the same permission results as in Teams.
+When Users A, B and C run the same requests from Claude Desktop, the system shall return the same permission results as in Teams.",,not grounded: no codebase supplied
+F11.6,F11,pbi,Verify write attempts are refused from both clients,acceptance-test,XS,confidential,recommendation,standard,drafted,full,F11.3;F11.4,F11,"If a signed-in authorized user submits a write statement from Claude Code, the system shall refuse it and leave the data unchanged.
+If a signed-in authorized user submits a write statement from Claude Desktop, the system shall refuse it and leave the data unchanged.",,not grounded: no codebase supplied
+F11.7,F11,pbi,IT/PMO lead sign-off on the recorded sessions,human-gated-step,XS,confidential,recommendation,standard,drafted,full,F11.3;F11.4;F11.5;F11.6,F11,"When the recorded sessions from Claude Code and Claude Desktop are submitted, the system shall have a sign-off from the IT/PMO lead on file.
+Where the access-control and write-refusal results exist, the sign-off shall reference them.",,not grounded: no codebase supplied
+F12.1,F12,pbi,Encrypted log destinations with restricted read access,cdk-infrastructure,S,confidential,recommendation,standard,drafted,full,,F12,"When a log destination is created, the system shall encrypt it with the customer-managed KMS key.
+If a principal not named by InfoSec requests read access to the audit logs, then the system shall deny the request.
+Where a principal is named by InfoSec, the system shall allow read access to the audit logs and to the KMS key for decryption.",,not grounded: no codebase supplied
+F12.2,F12,pbi,"CloudTrail coverage of Athena, Lake Formation and DMS activity",cdk-infrastructure,S,confidential,recommendation,standard,drafted,full,F12.1,F12,"When an Athena, Lake Formation or DMS API call is made, the system shall record it in CloudTrail.
+While CloudTrail is enabled, the system shall store the trail logs in the Log Archive account.
+The system shall encrypt the CloudTrail logs with the customer-managed KMS key.",,not grounded: no codebase supplied
+F12.3,F12,pbi,Bedrock invocation logging,cdk-infrastructure,S,confidential,recommendation,standard,drafted,full,F12.1,F12,"When a Bedrock model is invoked, the system shall write an invocation log record.
+The system shall encrypt the Bedrock invocation log with the customer-managed KMS key.
+If the log destination is unavailable, then the system shall raise an error metric for the dashboard and alarms.",,not grounded: no codebase supplied
+F12.4,F12,pbi,Per-question audit record via AgentCore Observability,data-pipeline,M,confidential,recommendation,standard,drafted,full,F12.1,F12,"When a question is answered, the system shall write an audit record containing the user, question, tool calls, SQL statement, timestamp and row count.
+While the identity-propagation fallback is in use, the system shall tie each audit record to a named person.
+If a field of the audit record cannot be populated, then the system shall emit an error metric identifying the missing field.
+The system shall write the audit records to the encrypted destination from F12.1.",,not grounded: no codebase supplied
+F12.5,F12,pbi,CloudWatch dashboard and latency report,cdk-infrastructure,S,internal,recommendation,light,drafted,light,F12.4,F12,"The system shall display latency, errors and throttling on a CloudWatch dashboard.
+When a latency report is requested for a period, the system shall report latency for that period in a form that shows whether the 60-second claim holds.",,not grounded: no codebase supplied
+F12.6,F12,pbi,Partial-load and error alarms with SNS email,cdk-infrastructure,S,internal,recommendation,light,drafted,light,F12.4,F12,"When a partial load is detected, the system shall raise an alarm.
+When the error rate exceeds the alarm threshold, the system shall raise an alarm.
+When an alarm is raised, the system shall publish a message to an SNS topic that emails every subscriber on the Mitsui distribution list.",,not grounded: no codebase supplied
+F12.7,F12,pbi,Verify test alarm reaches every recipient,deployed-state-verification,XS,internal,recommendation,light,drafted,light,F12.6,F12,"When a test alarm is triggered, the system shall deliver an email to every recipient on the Mitsui distribution list.
+If any recipient does not receive the test alarm, then the verification shall report that recipient as failed.",,not grounded: no codebase supplied
+F12.8,F12,pbi,Acceptance test: audit records for 20 sampled questions,acceptance-test,S,confidential,recommendation,standard,drafted,full,F12.2;F12.3;F12.4,F12,"When 20 pilot questions are sampled, the test shall find an audit record for each showing user, question, tool calls, SQL, timestamp and row count.
+If any sampled question has a missing record or missing field, then the test shall fail and name the question and field.
+The test shall confirm that CloudTrail and Bedrock invocation log entries exist for each sampled question.",,not grounded: no codebase supplied
+F12.9,F12,pbi,Runbook entry for log retention,documentation,XS,internal,recommendation,light,drafted,light,F12.1,F12,"The runbook shall state that audit, CloudTrail and Bedrock invocation logs use AWS default retention.
+The runbook shall list where each log type is stored and which account holds it.",,not grounded: no codebase supplied
+F13.1,F13,pbi,Publish Week 6 test plan and written rejection path,documentation,S,internal,recommendation,light,drafted,light,,F13,"When the Week 6 test plan is published, the system shall list every acceptance criterion from item 9.4 with a named tester and a named Mitsui verifier.
+When the Week 6 test plan is published, the system shall state the test method and the expected evidence for each acceptance criterion.
+If a verifier rejects a criterion, the published rejection path shall require a written rejection reason.",,not grounded: no codebase supplied
+F13.2,F13,pbi,Question-set accuracy evaluation,acceptance-test,M,confidential,recommendation,standard,drafted,full,F13.1,F13,"When the frozen question set is run, the system shall record an answer for each of the 30 questions for SME scoring.
+When Mitsui SMEs score the answers using the agreed tolerance, the system shall show at least 24 of 30 answers correct.
+The evaluation shall include about 10 held-back questions that were not used for tuning.
+When scoring is complete, the system shall save the answers and scores as evidence.",,not grounded: no codebase supplied
+F13.3,F13,pbi,Write-refusal test through AgentCore Policy and Lake Formation,acceptance-test,S,confidential,recommendation,standard,drafted,full,F13.1,F13,"When a write attempt is made through the assistant, AgentCore Policy shall refuse it.
+When AgentCore Policy is bypassed in a test and a write attempt is made, Lake Formation shall refuse it.
+When the tests finish, the system shall save the log of every write attempt and its refusal.",,not grounded: no codebase supplied
+F13.4,F13,pbi,"Permission tests for Users A, B and C across three clients",acceptance-test,M,confidential,recommendation,standard,drafted,full,F13.1,F13,"When User A, B or C asks the test questions through Teams, the system shall return results matching the expected table.
+When User A, B or C asks the test questions through Claude Code, the system shall return results matching the expected table.
+When User A, B or C asks the test questions through Claude Desktop, the system shall return results matching the expected table.
+When the tests finish, the system shall save the actual results next to the expected table.",,not grounded: no codebase supplied
+F13.5,F13,pbi,Verify no network path to on-premises databases,deployed-state-verification,S,confidential,recommendation,standard,drafted,full,F13.1,F13,"When the route table is exported, the system shall show no route from the assistant's network to the on-premises database networks.
+When the firewall configuration is exported, the system shall show no rule allowing traffic from the assistant to the on-premises databases.
+When the exports are reviewed, the system shall save them as evidence with the export date.",,not grounded: no codebase supplied
+F13.6,F13,pbi,Confirm Teams answer latency from the dashboard report,acceptance-test,S,internal,recommendation,light,drafted,light,F13.1;F13.8,F13,"When the pilot dashboard report is produced, the system shall show the typical Teams answer time as 60 seconds or less.
+When the report is reviewed, the pilot lead shall confirm the result in writing.
+When the confirmation is made, the system shall save the dashboard report as evidence.",,not grounded: no codebase supplied
+F13.7,F13,pbi,"Unattended daily load evidence, Dec 14 to Dec 25",deployed-state-verification,S,internal,recommendation,light,drafted,light,F13.1,F13,"While the load window runs from Dec 14 to Dec 25, the daily load shall run without manual intervention.
+When the DMS task and alarm history is exported on Dec 24, the system shall show each daily run from Dec 14 to Dec 24 and its alarms.
+When the Dec 25 run is added after the holiday, the system shall extend the exported history to include Dec 25.
+When the history is exported, the system shall save it as evidence.",,not grounded: no codebase supplied
+F13.8,F13,pbi,Run the pilot with about 15 users and log wrong answers,human-gated-step,M,confidential,recommendation,standard,drafted,full,F13.1,F13,"When the pilot runs, each pilot user shall have asked at least five questions.
+If a pilot user reports a wrong answer, the system shall log it with a severity.
+When the pilot ends, the system shall save a per-user question count and the wrong-answer log as evidence.",,not grounded: no codebase supplied
+F13.9,F13,pbi,Enforce code freeze from Dec 18,human-gated-step,XS,internal,recommendation,light,drafted,light,F13.1,F13,"While the code freeze is in effect from Dec 18, the system shall accept only changes that fix a failed test.
+If a change is proposed during the freeze and does not reference a failed test, the system shall reject it.
+When the freeze starts, the system shall record the freeze date and the rule that applies.",,not grounded: no codebase supplied
+F13.10,F13,pbi,Assemble evidence pack and obtain Mitsui verifier sign-off,customer-approval,M,confidential,recommendation,standard,drafted,full,F13.2;F13.3;F13.4;F13.5;F13.6;F13.7;F13.8;F13.9,F13,"When the evidence pack is assembled, the system shall link each acceptance criterion in item 9.4 to its evidence.
+When a Mitsui verifier reviews a criterion, the pack shall record either a sign-off or a written rejection reason.
+When Friday Dec 18 is reached, the pack shall have been sent with all evidence except the load evidence.
+When the load evidence is available on Dec 24 and in the first week after the holiday, the system shall add it to the pack and send the update.",,not grounded: no codebase supplied
+F14.1,F14,pbi,Write the operations runbook,docs,M,internal,recommendation,light,drafted,light,F2;F13,F14,"When the runbook is delivered, the system shall document the daily load procedure and the alarms an operator must watch, with the action for each alarm.
+When a load fails, the runbook shall describe the rerun procedure step by step.
+When a secret or SCIM token nears expiry, the runbook shall describe the secret rotation and SCIM token renewal procedures.
+The runbook shall document the Region and service-limit settings the deployment depends on.
+When Mitsui chooses to tear down, the runbook shall describe the teardown procedure, based on the F2 teardown scripts.",,not grounded: no codebase supplied
+F14.2,F14,pbi,"Hand over code, IaC and configuration in the agreed repository",deployed-state-verification,M,confidential,recommendation,standard,drafted,full,,F14,"When handover starts, the system shall hold the code, IaC, pipeline and configuration in the repository home agreed in DEP-25.
+When a Mitsui engineer follows the repository instructions, the system shall deploy successfully from that repository.
+The repository shall contain no secret values and no CapNexus-only credentials.
+If the deployment from the repository fails, the system shall record the failure and its cause in the handover notes.",,not grounded: no codebase supplied
+F14.3,F14,pbi,Hold the knowledge-transfer session,human-gated-step,S,internal,recommendation,light,drafted,light,F14.1;F14.2,F14,"When the session is scheduled, the system shall record the named Mitsui IT operations owner and the attendees.
+When the session is held, the system shall have walked through the runbook and the handover repository.
+The knowledge-transfer session shall be held by Thu Dec 24.
+When the session ends, the system shall record the date, attendees and any follow-up actions.",,not grounded: no codebase supplied
+F14.4,F14,pbi,Estimate AWS run cost from actual usage,docs,S,internal,recommendation,light,drafted,light,F13,F14,"When the estimate is prepared, the system shall base it on actual AWS usage observed during the POC.
+The estimate shall list cost per AWS service with the usage figure behind each line.
+The estimate shall state its assumptions and the period of usage it covers.",,not grounded: no codebase supplied
+F14.5,F14,pbi,Prepare the readout deck,docs,M,internal,recommendation,light,drafted,light,F13;F14.4,F14,"The readout deck shall state the result against each POC acceptance criterion, using the F13 test results.
+The readout deck shall include the AWS run-cost estimate from actual usage.
+The readout deck shall include a next-phase recommendation that considers Quorum, QLS/LIS, Oracle and geospatial.
+When a criterion was not met, the deck shall state which criterion and why.",,not grounded: no codebase supplied
+F14.6,F14,pbi,"Hold the readout and record the keep, pause or tear down decision",human-gated-step,S,internal,recommendation,light,drafted,light,F14.5,F14,"When the readout is held, the system shall record the date and attendees.
+When the readout ends, the system shall record Noah Jackson's decision as exactly one of keep, pause or tear down.
+If the decision is tear down, the system shall record that teardown follows the runbook procedure.
+The recorded decision shall be stored with the handover documents.",,not grounded: no codebase supplied
+F14.7,F14,pbi,Remove CapNexus access after handover,chore,S,confidential,authorized_action,standard,drafted,full,F14.2;F14.3;F14.6,F14,"When the knowledge-transfer session and the keep, pause or tear down decision are recorded, the system shall remove every CapNexus user, role and credential for the Mitsui environment.
+When access is removed, the system shall record what was removed and when.
+If CapNexus access remains after removal is attempted, the system shall report the remaining access to the Mitsui IT operations owner.",,not grounded: no codebase supplied
+F14.8,F14,pbi,Submit D10 and D11 for acceptance,customer-approval,S,internal,recommendation,light,drafted,light,F14.1;F14.2;F14.5;F14.6,F14,"When the runbook, handover repository and readout deck are complete, the system shall submit D10 and D11 with acceptance forms to the acceptance owner.
+When the submission is made, the system shall record the submission date and the 8-business-day review period.
+The recorded review period shall end by Fri Jan 8, 2027.
+When the acceptance owner signs, the system shall record the signed forms (DEP-23).",,1 open question(s); not grounded: no codebase supplied

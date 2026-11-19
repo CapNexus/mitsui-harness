@@ -25,7 +25,7 @@ Status values: `open`, `requested`, `in-progress`, `resolved`, `slipped`. A `sli
 | DEP-03 | Three account emails | Noah Jackson | Nov 18 | D+A | open | F2, F4 |
 | DEP-04 | Change-freeze calendar and CAB rules | Noah Jackson | Week 1 | C | open | F1, F3 |
 | DEP-05 | InfoSec, vendor and data-copy approval | Noah Jackson (names reviewer) | Week 1 and ongoing | C | open | F3, F4 |
-| DEP-06 | Region, service availability, Bedrock access and quotas | Solution Architect, Matt, Noah | Week 1 | A+D | open | F2, F8, F9 |
+| DEP-06 | Region, service availability, Bedrock access and quotas | Soma (Solution Architect), Matt, Noah | Week 1 | A+D | open | F2, F8, F9 |
 | DEP-07 | VPN, IP plan, DNS, firewall rules | Matt Schiefelbein | Nov 20 | A+D | open | F3, F4 |
 | DEP-08 | Source inventory, mixed-mode authentication, TDE | DBAs via Noah | Week 1 | D+A | open | F4 |
 | DEP-09 | Read-only SQL logins | Noah Jackson, DBAs | Nov 20 | B | open | F4 |
@@ -46,7 +46,7 @@ Status values: `open`, `requested`, `in-progress`, `resolved`, `slipped`. A `sli
 | DEP-24 | Audit and logging policy, alarm recipients | Noah Jackson, InfoSec | Week 5 | A | open | F12 |
 | DEP-25 | Repository and pipeline home | Mitsui | Week 1 | A+D | open | F2, F14 |
 | DEP-26 | Budget approval and billing contact | Noah Jackson | Week 1 | C+A | open | F1, F2 |
-| DEP-27 | Identity propagation to Athena | Solution Architect (test), Noah (accepts fallback) | Dec 2 | E | open | F6, F7, F8, F12 |
+| DEP-27 | Identity propagation to Athena | Soma (Solution Architect, test), Noah (accepts fallback) | Dec 2 | E | open | F6, F7, F8, F12 |
 | DEP-28 | Handover recipients, readout attendees, post-POC decision | Noah Jackson | Dec 14 | A+C | open | F14 |
 | DEP-29 | CapNexus working access (Teams, Entra guest, AWS portal) | Mitsui | Week 1 | D | open | F1, F6 |
 
