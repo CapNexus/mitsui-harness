@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS runs (
     id            TEXT PRIMARY KEY,
     story_id      TEXT NOT NULL,
     kind          TEXT NOT NULL,            -- analysis | implementation
-    status        TEXT NOT NULL,            -- queued | running | awaiting_review | completed | failed | stopped | interrupted | rejected
+    status        TEXT NOT NULL,            -- queued | running | awaiting_review | completed | failed | stopped | interrupted | rejected | discarded
     branch        TEXT,
     base_ref      TEXT,
     target_repo   TEXT,
