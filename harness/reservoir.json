@@ -1919,7 +1919,7 @@
         "functions": []
       },
       "ship_notes": [
-        "Repo: project-mep-AWS-Infrastructure; runtime: AWS CDK",
+        "Repo: project-mep-AWS-Code; runtime: AWS CDK",
         "DMS Serverless proposed as default",
         "Parameters sql_server_endpoints, onprem_cidrs, secret_dms_mepwell, secret_dms_sdedbprod, secret_dms_meps_aries, aws_home_region",
         "Secret values entered by a human in F04-S09; never seen by the harness",
@@ -2153,7 +2153,7 @@
         "functions": []
       },
       "ship_notes": [
-        "Repo: project-mep-AWS-Infrastructure; runtime: AWS CDK",
+        "Repo: project-mep-AWS-Code; runtime: AWS CDK",
         "Until DEP-24, the subscription uses the CapNexus on-call address",
         "Consumes metrics from F04-S06 and F04-S08",
         "F12 dashboard is out of scope"
@@ -2226,7 +2226,7 @@
       "dependencies": [],
       "effort": null,
       "id": "F04-S09",
-      "intent": "Metadata: repo: project-mep-AWS-Infrastructure; tier: integrate; executor: mixed; owner: Venkat; status: blocked; sow: D3; due: 2026-11-25; blocked_by: [DEP-05, DEP-07, DEP-08, DEP-09]; depends_on_stories: [F04-S01, F04-S02, F04-S03, F04-S05, F04-S06]; params: [sql_server_endpoints, approved_table_list, secret_dms_mepwell, secret_dms_sdedbprod, secret_dms_meps_aries]; human_gates: [InfoSec approve",
+      "intent": "Metadata: repo: project-mep-AWS-Code; tier: integrate; executor: mixed; owner: Venkat; status: blocked; sow: D3; due: 2026-11-25; blocked_by: [DEP-05, DEP-07, DEP-08, DEP-09]; depends_on_stories: [F04-S01, F04-S02, F04-S03, F04-S05, F04-S06]; params: [sql_server_endpoints, approved_table_list, secret_dms_mepwell, secret_dms_sdedbprod, secret_dms_meps_aries]; human_gates: [InfoSec approve",
       "level": "feature",
       "maturity": "drafted",
       "open_questions": [],

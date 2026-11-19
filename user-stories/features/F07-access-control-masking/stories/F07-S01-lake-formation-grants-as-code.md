@@ -10,7 +10,7 @@ status: ready
 sow: D4
 due: 2026-12-01
 blocked_by: []
-depends_on_stories: []
+depends_on_stories: [F02-S12]
 params: [entra_groups, approved_table_list, identity_mode, access_matrix_file]   # identity_mode and access_matrix_file are proposed
 human_gates: []
 ---
@@ -57,3 +57,4 @@ Test output.
 ## Status log
 
 - 2026-11-19: created
+- 2026-11-19: depends on F02-S12 (project CDK app and baseline lookup in Code)

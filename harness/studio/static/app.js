@@ -176,7 +176,7 @@ function tabImplement() {
     <p>Confidence: ${conf == null ? '<b>not analyzed</b> — run the analysis first' : `<span class="conf ${confClass(conf)}">${conf}%</span>`}</p>
     <div class="field"><label for="branch">Branch (suggested from the story id; all changes go here)</label>
       <input type="text" id="branch" value="${esc(st.branch_suggestion)}"></div>
-    <label class="row"><input type="checkbox" id="scaffold"> Scaffold unlock — first code story in this submodule may ADD toolchain configs (F02-S02, F04-S04)</label>
+    <label class="row"><input type="checkbox" id="scaffold"> Scaffold unlock — first code story in this submodule may ADD toolchain configs (F02-S02 Infrastructure, F02-S12 Code)</label>
     <div class="field ${low && conf != null ? "" : "hidden"}"><label for="override">Reason to start below ${S.threshold}% (recorded in harness-db)</label>
       <textarea id="override" rows="2"></textarea></div>
     <div class="row"><button class="btn" id="btnPre">Check preflight</button><button class="btn primary" id="btnStart">Start implementation</button></div>

@@ -10,7 +10,7 @@ status: ready
 sow: D3
 due: 2026-11-23
 blocked_by: []
-depends_on_stories: []
+depends_on_stories: [F02-S12]
 params: [approved_table_list]
 human_gates: []
 ---
@@ -47,3 +47,4 @@ PR with the sandbox scripts and passing `make sandbox-test` output.
 ## Status log
 
 - 2026-11-19: created
+- 2026-11-19: depends on F02-S12 (project CDK app and baseline lookup in Code)

@@ -5,12 +5,12 @@ title: Define DMS, staging bucket and source secrets as code
 tier: build
 executor: agent
 owner: Venkat
-repo: project-mep-AWS-Infrastructure
+repo: project-mep-AWS-Code
 status: ready
 sow: D3
 due: 2026-11-24
 blocked_by: []
-depends_on_stories: []
+depends_on_stories: [F02-S12]
 params: [sql_server_endpoints, onprem_cidrs, secret_dms_mepwell, secret_dms_sdedbprod, secret_dms_meps_aries, aws_home_region]
 human_gates: []
 ---
@@ -30,7 +30,7 @@ Out of scope: table mappings (F04-S03), the load into S3 Tables (F04-S05), alarm
 ## Acceptance criteria
 
 1. Given the CDK app, when it is synthesized, then it contains one DMS replication config (Serverless), three SQL Server source endpoints and one S3 target endpoint, and each source endpoint reads its credentials from the matching secret name (`wda/dms/mepwell`, `wda/dms/sdedbprod`, `wda/dms/meps_aries`).
-   - verify: `npm test` (CDK assertion tests) passes in `project-mep-AWS-Infrastructure`.
+   - verify: `npm test` (CDK assertion tests) passes in `project-mep-AWS-Code`.
 2. Given the synthesized template, when it is checked, then the staging bucket blocks public access, enforces TLS, and is encrypted with the customer-managed KMS key, and the three secrets use the same key.
    - verify: CDK assertion tests and `cdk-nag` (AwsSolutions pack) run with no unsuppressed errors.
 3. Given the synthesized template, when it is checked, then DMS runs only in the DMS subnet and its security group allows outbound traffic only to `onprem_cidrs` on the SQL Server ports and to the S3 endpoint.
@@ -45,7 +45,7 @@ Out of scope: table mappings (F04-S03), the load into S3 Tables (F04-S05), alarm
 | DEP-07 | A+D | SQL Server hosts, ports, on-prem CIDRs | `sql_server_endpoints`, `onprem_cidrs` placeholders |
 | DEP-09 | B | Read-only SQL logins | Secret names only. Values entered by a human in F04-S09. |
 
-Needs the KMS key (F2) and the VPC with a DMS subnet (F3). If they are not merged yet, use a stub construct with the same interface and say so in the PR.
+Reads the KMS key, the DMS subnets and the DMS security group from the baseline contract (`/mep/baseline/kms/key-arn`, `/mep/baseline/subnets/dms`, `/mep/baseline/sg/dms`, ADR 0002) through the F02-S12 lookup module. It never creates or changes them; unit tests use the stub values.
 
 ## Evidence
 
@@ -54,3 +54,5 @@ PR with passing tests and the `cdk-nag` report.
 ## Status log
 
 - 2026-11-19: created
+- 2026-11-19: repo moved to project-mep-AWS-Code (ADR 0002: project infrastructure lives with the project)
+- 2026-11-19: depends on F02-S12 (project CDK app and baseline lookup in Code)

@@ -9,16 +9,18 @@ inclusion: always
 Decided by the solution architect (Soma), Nov 19, 2026. These apply to every change the
 harness makes in `project-mep-AWS-Infrastructure` and `project-mep-AWS-Code`. Paths below
 (lib/, bin/, test/, package.json) are relative to the submodule the story names. Both
-repositories start empty; the harness writes the starter code (F02-S02 is the first code
-story) and must set up the toolchain below exactly, because `scripts/validate.sh` runs these
-commands as its stages.
+repositories start empty; the harness writes the starter code (F02-S02 is the first story in
+Infrastructure, F02-S12 the first in Code) and must set up the toolchain below exactly,
+because `scripts/validate.sh` runs these commands as its stages.
 
 ## Repositories
 
-| Repo (`repo:` in a story) | Content | Stack |
+The split is by purpose (see `project-context.md` context-6 and ADR 0002).
+
+| Repo (`repo:` in a story) | Purpose and content | Stack |
 |---|---|---|
-| `project-mep-AWS-Infrastructure` | Landing zone baseline, VPC, VPN, PrivateLink, DMS, S3, KMS, pipeline, monitoring, teardown | AWS CDK v2, TypeScript, Node.js 20 LTS |
-| `project-mep-AWS-Code` | Glue/Athena load jobs, catalog, Lake Formation, MCP tools, AgentCore Gateway/Policy, assistant, Teams bot, eval harness | AWS CDK v2 TypeScript for all infrastructure; runtime language per component is decided in the story that creates it |
+| `project-mep-AWS-Infrastructure` | **AWS baseline** for the project: landing zone and accounts, Region-deny, Identity Center and trusted token issuer, workload VPC, subnets and security groups, VPN, PrivateLink, shared KMS key, budget, baseline pipeline and teardown, and the published baseline contract (SSM `/mep/baseline/*`) | AWS CDK v2, TypeScript, Node.js 20 LTS |
+| `project-mep-AWS-Code` | **The project**: application code and every AWS resource that exists only for it (DMS, staging bucket, source secrets, load jobs, alarms, S3 Tables, catalog, Lake Formation, Athena workgroup, MCP tools, AgentCore Gateway/Policy, assistant, Teams bot, audit and monitoring, eval harness, project pipeline and teardown) | AWS CDK v2 TypeScript for all infrastructure; runtime language per component is decided in the story that creates it |
 | parent (`planning`) | Stories, evidence, tracking — never code | — |
 
 A story changes exactly one repository. Planning files never go into a submodule.

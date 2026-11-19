@@ -86,3 +86,37 @@ tests are Bash scripts under `user-stories/scripts/tests/` with valid and invali
 **Why.** `user-stories/README.md` layout; the validator's planning mode runs exactly these.
 
 **Check (validator).** Planning mode runs every `check-*.sh` and every test script.
+
+## context-6: baseline in Infrastructure, project in Code
+
+**Rule.** `project-mep-AWS-Infrastructure` holds the AWS baseline the project runs on:
+landing zone and accounts, Region-deny, IAM Identity Center and the trusted token issuer,
+the workload VPC, subnets and security groups, VPN, PrivateLink endpoints, the shared KMS
+key, budget, the baseline pipeline and teardown. `project-mep-AWS-Code` holds the project:
+all application code **and every AWS resource that exists only for it** (DMS, staging
+bucket, source secrets, load jobs, alarms, S3 Tables, catalog, Lake Formation, Athena
+workgroup, tools, Gateway, Policy, assistant, Teams bot, audit, project pipeline and
+teardown). The test: would the resource stay if the project were replaced? Yes →
+Infrastructure; no → Code.
+
+In a Code story:
+- Never create, import-and-modify or add rules, routes or subnets to a baseline resource.
+  Read baseline values from SSM Parameter Store under `/mep/baseline/` (names in ADR 0002,
+  "The baseline contract") through one lookup module; unit tests stub those names.
+- Put DMS only in `/mep/baseline/subnets/dms` with `/mep/baseline/sg/dms`, and tools and the
+  assistant only in `/mep/baseline/subnets/tools`. Encrypt with `/mep/baseline/kms/key-arn`.
+- If the story needs a baseline value that is not in the contract, stop and raise it as an
+  open question: the fix is an Infrastructure story that publishes it, not a Code workaround.
+
+In an Infrastructure story:
+- Never add project resources. Publish any new value Code needs under `/mep/baseline/` and
+  add it to the ADR 0002 contract table in the same change (planning edit noted in the PR).
+
+**Why.** ADR 0002: the baseline is deployed first and torn down last, and network isolation
+(only the DMS subnet reaches the VPN) is enforced by the baseline, not by project code.
+
+**Check (review).** The reviewer rejects a Code change that defines an `ec2.Vpc`,
+`ec2.Subnet`, route, VPN, VPC endpoint, KMS key or Control Tower/Identity Center resource,
+or that hard-codes a baseline ID instead of reading `/mep/baseline/*`; and an
+Infrastructure change that defines DMS, Glue, Lake Formation, Lambda tools, AgentCore or
+bot resources.
