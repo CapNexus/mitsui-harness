@@ -293,6 +293,9 @@ def make_run_agent(pbc: PlanBuildContext) -> loop_driver.AgentRunner:
             if name == "commit_tests" and (context.get("classification") in NO_TDD
                                            or pbc.tests_status == "skipped" or not pbc.new_test_files):
                 return "skipped: no tests to commit for this work type"
+            if not _changed_files(pbc.repo_dir):
+                # e.g. a re-run after a human already committed the change themselves
+                return "skipped: nothing left to commit"
             before = pbc.head()
             reply = ask(plan_file_path=context["plan_file_path"],
                         scope="tests" if name == "commit_tests" else "full")

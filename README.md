@@ -10,7 +10,8 @@ reviewing one story at a time.
 - [One-time setup](#one-time-setup)
 - [Start Harness Studio](#start-harness-studio)
 - [Work a story: analyze, implement, review](#work-a-story-analyze-implement-review)
-- [After you commit: PR and record](#after-you-commit-pr-and-record)
+- [After you approve: push, PR and record](#after-you-approve-push-pr-and-record)
+- [Command line](#command-line-same-harness-no-ui)
 - [Rules the harness enforces](#rules-the-harness-enforces)
 - [Troubleshooting](#troubleshooting)
 
@@ -112,7 +113,8 @@ parameter placeholders.
 
 ### 2. Analyze and get a confidence score
 
-Open **Analysis & confidence** and click **Run analysis**. Kiro's read-only `reviewer` reads
+Open **Analysis & confidence** and click **Run analysis** (the same as `run_story.py analyze`,
+implemented in `harness/story_analysis.py`). Kiro's read-only `reviewer` reads
 the story, its feature, the dependency register, parameters, ADRs, knowledge documents,
 task-list context and steering, then scores readiness. Watch it work in the **Live console**.
 
@@ -137,25 +139,29 @@ Open **Implement**:
 3. If confidence is below 80%, enter a reason to override. It is saved with the run.
 4. Click **Check preflight**, then **Start implementation**.
 
-The run follows the harness `plan_build` loop. Each step shows in the step bar and the
-console:
+The run follows the harness `plan_build` workflow (`harness/workflows/plan_build.json`). Every
+step is executed by the harness itself (`harness/drivers/run_plan_build.py`), exactly as
+`run_story.py run` does; Studio only runs the steps one at a time so it can checkpoint,
+stream and resume. Each step shows in the step bar and the console:
 
 ```
-classify → plan → plan_exists → write_tests → red → implement → tests_unchanged
-         → green → validate → review → human review
+classify → plan → plan_exists → write_tests → commit_tests → red → implement
+         → tests_unchanged → green → validate → review → commit → human review
 ```
 
 | Step | What happens |
 |---|---|
-| classify | The reviewer picks the work type (for example `cdk-infrastructure`, `checker-script`) |
+| classify | The read-only reviewer picks the work type (for example `cdk-infrastructure`, `checker-script`) |
 | plan | The builder writes a plan file with numbered "shall" criteria |
 | plan_exists | Checks that the plan cites the story and has those criteria |
-| write_tests | The builder writes tests first. Studio fingerprints the test files. |
+| write_tests | The builder writes tests first |
+| commit_tests | The builder commits only the tests (skipped for documentation and other TDD-free work types) |
 | red | The validator must **fail** twice, which shows the new tests test something |
 | implement | The builder writes the code |
-| tests_unchanged | The test files must be byte-identical: the implementation may not weaken tests |
+| tests_unchanged | The committed tests must be unchanged: the implementation may not weaken them |
 | green, validate | The validator must **pass** (twice, then once) |
 | review | The reviewer checks the real diff against the plan and steering: `APPROVE` or `REVISE` |
+| commit | Only after `APPROVE`, the builder commits the change on the story branch |
 | human review | You decide (next section) |
 
 The console shows agent text, tool calls, validator output and, optionally, the agent's
@@ -163,24 +169,28 @@ thinking. Token counts are shown per step, per run, per story and in total. Kiro
 report token usage to the app (it bills credits to your account), so these are
 **estimates** from text size.
 
-**Stop and resume.** **Stop** ends the current step. **Resume** continues from the first
-unfinished step on the same branch. This also works after a crash or a Studio restart,
+**Stop, resume and re-run.** **Stop** ends the current step. **Resume** continues from the
+first unfinished step on the same branch. This also works after a crash or a Studio restart,
 because every step is saved in harness-db (`harness/studio/data/harness.db`). When a check
-such as `green` fails, you can fix the problem by hand and then resume.
+such as `green` fails, you can fix the problem by hand and resume. **Re-run from step** runs
+a chosen step and everything after it again, for example `review` after you changed
+something yourself.
 
-### 4. Review and commit (you, not the agent)
+If the reviewer answers `REVISE`, `commit` refuses and the run stops there with the findings
+in the console. Fix the code on the branch, or re-run from `implement`.
 
-The agent **never commits**. When the run reaches **Human review**, Studio shows the reviewer's
-verdict and findings, the full diff against the base, and a suggested commit message. Then
-either:
+### 4. Review (you)
 
-- edit the message and click **Commit all changes to `story/...`**, or
-- commit yourself in a terminal and click **I committed it myself**, or
-- click **Reject**. The work stays on the branch.
+When the run reaches **Human review**, the builder's commits are on the story branch and
+nothing is pushed. Studio shows the commits, the reviewer's verdict and findings, the full
+diff against the base, and anything the agent left uncommitted. Then either:
 
-Nothing is pushed.
+- click **Approve: ready to push**, or
+- click **Reject**. The commits stay on the branch.
 
-## After you commit: PR and record
+You can amend or add commits on the branch yourself before you approve.
+
+## After you approve: push, PR and record
 
 For a story in a submodule:
 
@@ -196,18 +206,25 @@ After it is merged, record the story as done. This commits the new submodule poi
 uv run --with-requirements harness/drivers/requirements.txt python harness/run_story.py record F02-S02
 ```
 
-For a `planning` story, the work is already on its branch in this repository. Push it and
-open a pull request into `main` (`main` only accepts pull requests).
+For a `planning` story, the commits are on its branch in this repository. Push it and open a
+pull request into `main` (`main` only accepts pull requests).
 
-Useful commands:
+## Command line (same harness, no UI)
+
+Studio and these commands run the same harness code and give the same results:
 
 ```bash
-uv run --with-requirements harness/drivers/requirements.txt python harness/run_story.py list   # runnable stories, next first
+uv run --with-requirements harness/drivers/requirements.txt python harness/run_story.py list               # runnable stories, next first
+uv run --with-requirements harness/drivers/requirements.txt python harness/run_story.py analyze F02-S02    # confidence; exit 2 below 80
+uv run --with-requirements harness/drivers/requirements.txt python harness/run_story.py run F02-S02 --scaffold [--branch story/...]
+uv run --with-requirements harness/drivers/requirements.txt python harness/run_story.py record F02-S02     # after the PR is merged
 ```
 
-> `run_story.py run` (running the loop from the command line) does not work yet: the shipped
-> driver passes prompt inputs in a format the `.kiro/prompts` templates reject. Studio has
-> its own step wiring and is the supported way to implement a story until the driver is fixed.
+Set `AEW_AUTO_APPROVE=1` in the shell first for `run`. The driver checks run without Kiro:
+
+```bash
+uv run --with-requirements harness/drivers/requirements.txt python -m unittest discover -s harness/tests -v
+```
 
 ## Rules the harness enforces
 
