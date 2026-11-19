@@ -5,7 +5,7 @@ title: Connect to Mitsui sources and run the first full loads
 tier: integrate
 executor: mixed
 owner: Venkat
-repo: project-mep-AWS-Infrastructure
+repo: project-mep-AWS-Code
 status: blocked
 sow: D3
 due: 2026-11-25
@@ -21,7 +21,7 @@ As Venkat (DevOps), I want DMS connected to the three Mitsui SQL Servers and the
 
 ## Context
 
-Week 2 plan: DMS setup Tue Nov 24, first loads Wed Nov 25, in the order MEPWELL, then MEPS_ARIES, then SDEDBPROD (only once the approach is in place, F04-S10). Needs F3 (VPN tunnels up, TCP tests passing from the DMS subnet) and F2 (POC account, KMS key).
+Week 2 plan: DMS setup Tue Nov 24, first loads Wed Nov 25, in the order MEPWELL, then MEPS_ARIES, then SDEDBPROD (only once the approach is in place, F04-S10). Needs F3 (VPN tunnels up, TCP tests passing from the DMS subnet) and F2 (POC account, KMS key, baseline contract published by F02-S13). Deploys through the project pipeline in `project-mep-AWS-Code` after the baseline pipeline.
 
 This story swaps the placeholders for the real values: `sql_server_endpoints`, the signed `approved_table_list`, and the three secrets. The harness never sees the credentials. A human enters them in Secrets Manager.
 
@@ -55,3 +55,4 @@ This story swaps the placeholders for the real values: `sql_server_endpoints`, t
 ## Status log
 
 - 2026-11-19: created
+- 2026-11-19: repo moved to project-mep-AWS-Code (ADR 0002: project infrastructure lives with the project)

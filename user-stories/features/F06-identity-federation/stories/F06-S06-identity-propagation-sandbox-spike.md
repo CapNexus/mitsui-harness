@@ -10,7 +10,7 @@ status: ready
 sow: D4
 due: 2026-11-25
 blocked_by: []
-depends_on_stories: [F06-S04]
+depends_on_stories: [F06-S04, F06-S09]
 params: [entra_issuer_url, wda_api_audience, masked_column]
 human_gates: [Soma reviews the spike findings]
 ---
@@ -49,3 +49,4 @@ Script output and the write-up.
 ## Status log
 
 - 2026-11-19: created
+- 2026-11-19: depends on F06-S09 (workgroup moved to Code)

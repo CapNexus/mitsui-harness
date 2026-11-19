@@ -17,11 +17,13 @@ human_gates: [Venkat approves each real teardown run]
 
 ## Story
 
-As Venkat (DevOps), I want a script that removes every POC resource and leaves the Control Tower landing zone alone, so that Mitsui can stop paying for the POC after the readout and redeploy it later from the repository.
+As Venkat (DevOps), I want a script that removes the POC baseline resources and leaves the Control Tower landing zone alone, so that Mitsui can stop paying for the POC after the readout and redeploy it later from the repository.
 
 ## Context
 
 F2 criterion 8, end-to-end scenario E2E-8, and the runbook (F14). The task list finishes the script on Thu Dec 17. It is built now in the sandbox and extended as each new stack is added. The landing zone, Log Archive and Audit accounts and the retained KMS key are not removed.
+
+Under ADR 0002 the project's own stacks are torn down first by the `project-mep-AWS-Code` teardown script (F02-S12). This script removes the baseline only, after that.
 
 ## Acceptance criteria
 
@@ -34,6 +36,9 @@ F2 criterion 8, end-to-end scenario E2E-8, and the runbook (F14). The task list 
 4. Given the script, when it starts, then it requires the operator to type the account ID, and it refuses to run in the management account.
    - verify: unit tests for both refusal cases pass.
 
+5. Given stacks from `project-mep-AWS-Code` still exist in the POC account, when the script runs, then it stops before deleting anything and names those stacks.
+   - verify: script test with a stubbed stack list that includes a Code stack exits non-zero and deletes nothing.
+
 ## Dependencies
 
 None.
@@ -45,3 +50,4 @@ Dry-run and real-run logs from the sandbox in `evidence/F02/teardown/`.
 ## Status log
 
 - 2026-11-19: created
+- 2026-11-19: baseline-only teardown; refuses while Code stacks exist (ADR 0002 order)

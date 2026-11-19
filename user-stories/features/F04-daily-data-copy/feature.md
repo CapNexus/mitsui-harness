@@ -37,14 +37,14 @@ Source: `WDA-POC-Feature-List.md`, F4. Data flow steps D1 to D6 and the load run
 | ID | Title | Tier | Executor | Repo | Blocked by | Status |
 |---|---|---|---|---|---|---|
 | [F04-S01](stories/F04-S01-approved-table-list.md) | Pre-fill and sign off the approved table list | integrate | mixed | planning | DEP-08, DEP-10 | blocked |
-| [F04-S02](stories/F04-S02-dms-staging-and-secrets-infra.md) | Define DMS, staging bucket and source secrets as code | build | agent | project-mep-AWS-Infrastructure | none | ready |
-| [F04-S03](stories/F04-S03-dms-table-mappings.md) | Generate DMS table mappings from the approved list | build | agent | project-mep-AWS-Infrastructure | none | ready |
+| [F04-S02](stories/F04-S02-dms-staging-and-secrets-infra.md) | Define DMS, staging bucket and source secrets as code | build | agent | project-mep-AWS-Code | none | ready |
+| [F04-S03](stories/F04-S03-dms-table-mappings.md) | Generate DMS table mappings from the approved list | build | agent | project-mep-AWS-Code | none | ready |
 | [F04-S04](stories/F04-S04-sandbox-source-databases.md) | Build sandbox source databases with synthetic data | build | agent | project-mep-AWS-Code | none | ready |
 | [F04-S05](stories/F04-S05-load-staging-into-s3-tables.md) | Load staged files into S3 Tables with a name map | build | agent | project-mep-AWS-Code | none | ready |
 | [F04-S06](stories/F04-S06-row-count-check.md) | Compare row counts after each load | build | agent | project-mep-AWS-Code | none | ready |
-| [F04-S07](stories/F04-S07-load-alarms-and-notifications.md) | Add load alarms and the email topic | build | agent | project-mep-AWS-Infrastructure | none | ready |
+| [F04-S07](stories/F04-S07-load-alarms-and-notifications.md) | Add load alarms and the email topic | build | agent | project-mep-AWS-Code | none | ready |
 | [F04-S08](stories/F04-S08-daily-load-orchestration.md) | Orchestrate and schedule the daily load | build | agent | project-mep-AWS-Code | none | ready |
-| [F04-S09](stories/F04-S09-connect-sources-and-first-loads.md) | Connect to Mitsui sources and run the first full loads | integrate | mixed | project-mep-AWS-Infrastructure | DEP-05, DEP-07, DEP-08, DEP-09 | blocked |
+| [F04-S09](stories/F04-S09-connect-sources-and-first-loads.md) | Connect to Mitsui sources and run the first full loads | integrate | mixed | project-mep-AWS-Code | DEP-05, DEP-07, DEP-08, DEP-09 | blocked |
 | [F04-S10](stories/F04-S10-sdedbprod-currency-and-geometry.md) | Decide the SDEDBPROD approach and prove current edits load | integrate | mixed | planning | DEP-11 | blocked |
 | [F04-S11](stories/F04-S11-scheduled-load-four-clean-runs.md) | Schedule the load in the agreed window and reach four clean runs | integrate | mixed | project-mep-AWS-Code | DEP-12 | ready |
 | [F04-S12](stories/F04-S12-fault-test-and-stable-load.md) | Run the partial-load fault test and reach a stable load | integrate | mixed | project-mep-AWS-Code | DEP-24 | ready |
@@ -58,4 +58,5 @@ Build order: S04, S02, S03, S05, S06, S07, S08 can start now in the CapNexus san
 - Glue or Athena for the load job (workflow assumption 2) is the Data & Platform Engineer's choice. S05 records it.
 - DMS Serverless is the proposed default (Feature List Section 6, cost notes). S02 uses it unless sizing shows otherwise.
 - The Dec 25 load cannot be exported before the readout (Feature List Section 5, gap 1, and Section 7, question 3). Mitsui must accept the next-business-day check. S13 holds the gate.
-- F4 depends on F2 (POC account, KMS key) and F3 (VPC, DMS subnet, VPN). The stories reference those features, not story IDs, because F2 and F3 stories were written in parallel.
+- F4 depends on F2 (POC account, KMS key, project CDK app F02-S12, baseline contract F02-S13) and F3 (VPC, DMS subnet, VPN).
+- ADR 0002 (purpose split): every F4 resource exists only for this project, so all F4 code is in `project-mep-AWS-Code`. It reads the VPC, DMS subnets, DMS security group and KMS key from SSM `/mep/baseline/*` and never changes them. The Step Functions orchestration and the DMS tasks are now in the same repository, so no cross-repository ARN lookup is needed.

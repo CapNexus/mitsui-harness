@@ -22,7 +22,7 @@ Source: `WDA-POC-Feature-List.md`, F6. Workflow steps I1 to I3 in `adr/WDA-POC-D
 | 2 | A test user signs in to the AWS access portal through Entra, and CapNexus engineers sign in the same way. | F06-S03 |
 | 3 | WDA-API, WDA-TeamsBot and WDA-Clients exist with admin consent, and WDA-Clients is a pre-registered public client usable by Claude Code and Claude Desktop. | F06-S02 |
 | 4 | The trusted token issuer maps the email claim, and a token from Entra is accepted for the WDA-API audience. | F06-S04, F06-S05 |
-| 5 | Identity propagation test: a query run for User A in Athena is attributed to User A in CloudTrail or Athena query history. If this fails, the fallback (permissions by Entra group, user logged in the application) is documented and Noah Jackson accepts it in writing before Fri Dec 4. | F06-S06, F06-S07 |
+| 5 | Identity propagation test: a query run for User A in Athena is attributed to User A in CloudTrail or Athena query history. If this fails, the fallback (permissions by Entra group, user logged in the application) is documented and Noah Jackson accepts it in writing before Fri Dec 4. | F06-S09, F06-S06, F06-S07 |
 | 6 | Conditional Access policies that apply to pilot, test and IT/PMO users are reviewed, and any that block loopback or device-code sign-in are listed with a resolution. | F06-S08 |
 
 ## Stories
@@ -32,13 +32,16 @@ Source: `WDA-POC-Feature-List.md`, F6. Workflow steps I1 to I3 in `adr/WDA-POC-D
 | [F06-S01](stories/F06-S01-entra-federation-prerequisites.md) | Confirm Entra prerequisites and run federation planning session | integrate | mixed | DEP-14 | blocked |
 | [F06-S02](stories/F06-S02-entra-groups-and-app-registrations.md) | Create the Entra groups and app registrations | integrate | human | DEP-14 | blocked |
 | [F06-S03](stories/F06-S03-identity-center-saml-scim-switch.md) | Switch Identity Center to Entra with SAML and SCIM | integrate | mixed | DEP-02, DEP-14, DEP-29 | blocked |
-| [F06-S04](stories/F06-S04-trusted-token-issuer-construct.md) | Build the trusted token issuer and identity-aware Athena workgroup as code | build | agent | none | ready |
+| [F06-S04](stories/F06-S04-trusted-token-issuer-construct.md) | Build the trusted token issuer as code | build | agent | none | ready |
 | [F06-S05](stories/F06-S05-trusted-token-issuer-mitsui-tenant.md) | Deploy the trusted token issuer for the Mitsui Entra tenant | integrate | mixed | DEP-14 | blocked |
 | [F06-S06](stories/F06-S06-identity-propagation-sandbox-spike.md) | Spike identity propagation to Athena in the sandbox | build | agent | none | ready |
 | [F06-S07](stories/F06-S07-identity-propagation-test-and-decision.md) | Test identity propagation in the POC account and decide the identity mode | integrate | mixed | DEP-27, DEP-14 | blocked |
 | [F06-S08](stories/F06-S08-conditional-access-review.md) | Review Conditional Access for pilot, test and IT/PMO users | integrate | mixed | DEP-15 | blocked |
+| [F06-S09](stories/F06-S09-identity-aware-athena-workgroup.md) | Build the identity-aware Athena workgroup as code | build | agent | none | ready |
 
 ## Open points
+
+- ADR 0002 (purpose split): Identity Center and the trusted token issuer are baseline (`project-mep-AWS-Infrastructure`, S03 to S05). The identity-aware Athena workgroup exists only for this project, so it is S09 in `project-mep-AWS-Code`.
 
 - DEP-27 (type E) is open. F06-S07 sets the proposed parameter `identity_mode` (`propagated` or `group_fallback`). F7 and F8 build both modes behind this switch.
 - Feature List Section 7, question 4: Entra P1 licence and UPN equals primary email are unconfirmed. F06-S01 confirms both. Without P1, SCIM and group assignment fail and F6 to F8 slip.

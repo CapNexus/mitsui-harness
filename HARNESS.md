@@ -24,7 +24,12 @@ uv run --with-requirements harness/drivers/requirements.txt python harness/run_s
   `depends_on_stories` entry `done`, earliest due date first. The first is F01-S01 (planning),
   then F02-S02 (the first code story).
 - `--scaffold` is a human unlock for the **first story in each submodule** (F02-S02 in
-  Infrastructure, F04-S04 in Code): it lets that run ADD tsconfig/Jest/ESLint/Prettier configs.
+  Infrastructure, F02-S12 in Code): it lets that run ADD tsconfig/Jest/ESLint/Prettier configs.
+- **Repository split (ADR 0002, steering context-6):** `project-mep-AWS-Infrastructure` is the AWS
+  baseline (landing zone, Identity Center, VPC/VPN/PrivateLink, shared KMS key) and publishes
+  it under SSM `/mep/baseline/*`; `project-mep-AWS-Code` is the project, its code and every
+  AWS resource that exists only for it, and reads the baseline, never changes it. Deploy
+  Infrastructure first, tear down Code first.
 - `record <id>`: after the submodule PR is merged, commits the submodule pointer and the
   story's `status: done` in one parent commit (ADR 0002 rule 2). Planning stories commit on
   their `story/<id>` branch in this repo.

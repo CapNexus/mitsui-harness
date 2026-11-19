@@ -5,7 +5,7 @@ title: Generate DMS table mappings from the approved list
 tier: build
 executor: agent
 owner: Venkat
-repo: project-mep-AWS-Infrastructure
+repo: project-mep-AWS-Code
 status: ready
 sow: D3
 due: 2026-11-24
@@ -57,3 +57,4 @@ PR with passing unit tests and a generated mapping for the sandbox list.
 ## Status log
 
 - 2026-11-19: created
+- 2026-11-19: repo moved to project-mep-AWS-Code (ADR 0002: project infrastructure lives with the project)

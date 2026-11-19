@@ -10,7 +10,7 @@ status: ready
 sow: D5
 due: 2026-11-30
 blocked_by: []
-depends_on_stories: []
+depends_on_stories: [F02-S12]
 params: [limit_list_tables_rows, limit_describe_columns_rows, limit_sample_rows_default, limit_sample_rows_max, limit_run_select_rows, timeout_list_describe_sample_s, timeout_run_select_s, timeout_question_s, athena_scan_cutoff_gb, identity_mode]   # identity_mode is proposed
 human_gates: [Soma approves the tool contract and the compute decision]
 ---
@@ -47,3 +47,4 @@ Contract, schemas, name check output.
 ## Status log
 
 - 2026-11-19: created
+- 2026-11-19: depends on F02-S12 (project CDK app and baseline lookup in Code)
