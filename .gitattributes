@@ -1,0 +1,23 @@
+# Same line endings on Windows and macOS checkouts, whatever core.autocrlf says.
+* text=auto
+
+# Run by bash (Git Bash on Windows, /bin/bash on macOS): CRLF breaks them ($'\r': command not found).
+*.sh      text eol=lf
+
+# Python and config read by tools on both platforms.
+*.py      text eol=lf
+*.json    text eol=lf
+*.md      text eol=lf
+*.ts      text eol=lf
+*.js      text eol=lf
+
+# Windows-only launchers.
+*.cmd     text eol=crlf
+*.bat     text eol=crlf
+*.ps1     text eol=crlf
+
+# Binary sources.
+*.docx    binary
+*.xlsx    binary
+*.pdf     binary
+*.drawio  text eol=lf
