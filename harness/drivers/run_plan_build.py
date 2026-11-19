@@ -1,11 +1,22 @@
 """Run the `loop` shape for real: classify -> plan -> TDD -> validate -> review -> commit.
 
 Shipped by harness-bootstrap into every generated harness that declares a `loop`-shaped
-workflow (`harness/drivers/run_plan_build.py`) — the piece that was missing before: a
-real, runnable entrypoint wiring `loop_driver.run_loop` to actual Kiro turns (via
-`agents.invoke_kiro`) and this harness's own `scripts/validate.sh`, for the canonical
-`classify -> plan -> write_tests -> commit_tests -> red -> implement -> green -> validate
--> review -> commit` step sequence `aew-pattern.md` requires and `validate.py` enforces.
+workflow (`harness/drivers/run_plan_build.py`), and corrected for this harness
+(mitsui-harness, 2026-11-19) so it matches the deployed `.kiro/prompts` contracts:
+
+  * every prompt is rendered with the **named variables** its `## Variables` block declares
+    (`issue`, `classification`, `plan_file_path`, `base_ref`, `scope`), never a bare
+    ARGUMENTS, which those templates reject;
+  * the plan step's <<<SPEC>>> envelope is the **path** of the plan file the agent wrote;
+  * `plan_exists`, `red` (skipped for TDD-free work types) and `tests_unchanged` are real
+    deterministic checks;
+  * `commit_tests` records the commit it made, and `commit` refuses unless the review
+    ended in APPROVE.
+
+This module is the single source of truth for what each step does. `harness/run_story.py`
+(CLI) and Harness Studio (`harness/studio/`) both drive it through `PlanBuildContext`,
+`make_run_agent` and `make_run_check`; Studio runs the steps one at a time so it can
+checkpoint and resume, but never changes what a step does.
 
 Usage (run from the repo root, with `uv pip install -r harness/drivers/requirements.txt`
 and `kiro-cli` on PATH)::
@@ -13,24 +24,11 @@ and `kiro-cli` on PATH)::
     uv run python harness/drivers/run_plan_build.py --issue "<issue text>" [--issue-id ST-42]
     uv run python harness/drivers/run_plan_build.py --issue-file path/to/issue.md
 
-Every agent step's prompt takes one bare `$ARGUMENTS` input in this harness's own
-convention (confirmed against the deployed prompts, not assumed): `classify`/`plan` get
-the issue text; `write_tests`/`implement` get the plan file path this script wrote from
-the `plan` step's `SPEC` envelope; `review` gets the issue plus that path; `commit`/
-`commit_tests` get which files to stage, discovered from `git status` (never guessed from
-an agent's own prose self-report) plus the issue's id/title/work type.
+`red`/`green`/`validate` run this harness's own `scripts/validate.sh` and check its exit
+code. If that script does not exist yet they report "skipped: no validator yet".
 
-What this script does NOT invent: `red`/`green`/`validate` run this harness's own
-`scripts/validate.sh` and check its exit code — if that script does not exist yet (an
-empty validator, no codebase — the normal state for a requirements-only harness), they
-report "skipped: no validator yet" rather than silently passing or failing, exactly as
-`plan_harness.md` requires the plan's own `validate` step to say.
-
-Every `scripts/validate.sh` invocation is bounded by `VALIDATOR_TIMEOUT` (default 300s,
-override via env). A hung validator — a generated test recursively invoking the validator
-or test runner itself, a stray network call, anything — fails that step cleanly instead of
-hanging the whole driver forever; the timeout kills the *entire* process group `bash`
-spawned, not just `bash`, so nothing it started is left running.
+Every validator run is bounded by `VALIDATOR_TIMEOUT` (default 300s); on timeout the whole
+process tree is killed (process group on POSIX, `taskkill /T` on Windows).
 """
 
 from __future__ import annotations
@@ -38,11 +36,13 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import signal
 import subprocess
 import sys
+import threading
 from datetime import datetime, timezone
-from typing import List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import loop_driver  # noqa: E402
@@ -54,172 +54,348 @@ import prompts  # noqa: E402
 PROMPTS_DIR = ".kiro/prompts"
 WORKFLOW_PATH = "harness/workflows/plan_build.json"
 VALIDATOR = "scripts/validate.sh"
-# A hung validator (a generated test recursively invoking the validator/test runner itself,
-# a stray network call, anything) must fail this step, not take the whole driver down
-# indefinitely — this is what forced a manual `pkill` across a whole orphaned process tree
-# during real use, before this existed.
 VALIDATOR_TIMEOUT = float(os.getenv("VALIDATOR_TIMEOUT", "300"))
 
+# HARNESS.md "Classifications": the work types with TDD = no. `red` and `tests_unchanged`
+# are skipped for them (the plan_build workflow's own check text says so).
+NO_TDD = frozenset({
+    "human-gated-step", "customer-approval", "documentation", "docs", "harness-feature",
+    "harness-prompt", "harness-agent", "harness-classification", "harness-tune",
+})
 
-def _git(*args: str) -> Tuple[int, str]:
-    r = subprocess.run(["git", *args], capture_output=True, text=True)
+Invoker = Callable[..., str]
+
+
+# --- process helpers ------------------------------------------------------------------------
+
+def find_bash() -> str:
+    """Git Bash on Windows (never WSL's bash.exe), `bash` elsewhere; HARNESS_BASH overrides."""
+    explicit = os.getenv("HARNESS_BASH")
+    if explicit:
+        return explicit
+    if os.name == "nt":
+        for p in (r"C:\Program Files\Git\bin\bash.exe", r"C:\Program Files\Git\usr\bin\bash.exe"):
+            if os.path.isfile(p):
+                return p
+    return "bash"
+
+
+def kill_tree(proc: subprocess.Popen) -> None:
+    try:
+        if os.name == "nt":
+            subprocess.run(["taskkill", "/F", "/T", "/PID", str(proc.pid)], capture_output=True)
+        else:
+            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+    except (ProcessLookupError, OSError):
+        pass
+
+
+def _git(*args: str, cwd: Optional[str] = None) -> Tuple[int, str]:
+    cmd = ["git", "-C", cwd, *args] if cwd else ["git", *args]
+    r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
     return r.returncode, (r.stdout + r.stderr).strip()
 
 
-def _changed_files() -> List[str]:
-    """Every tracked-or-new path with uncommitted changes, via `git status`, never an
-    agent's own self-report of what it touched."""
-    code, out = _git("status", "--porcelain")
+def _changed_files(cwd: Optional[str] = None) -> List[str]:
+    """Every path with uncommitted changes, from `git status` (never an agent's self-report).
+    `-uall` lists files inside new directories instead of the directory."""
+    code, out = _git("status", "--porcelain", "-uall", cwd=cwd)
     if code != 0:
         return []
-    return [line[3:].strip() for line in out.splitlines() if line.strip()]
+    files = []
+    for line in out.splitlines():
+        if not line.strip():
+            continue
+        path = line[3:].strip().strip('"')
+        files.append(path.split(" -> ", 1)[1] if " -> " in path else path)
+    return files
 
 
-def _run_validator_once() -> Tuple[int, str, str]:
-    """Run VALIDATOR once, bounded by VALIDATOR_TIMEOUT. On timeout, kills the whole process
-    GROUP (`start_new_session=True` + `killpg`), not just the direct `bash` child — a plain
-    `subprocess.run(timeout=...)` only kills that one process, leaving anything it spawned
-    (e.g. a recursively-invoked `pytest` tree) running and orphaned, exactly what happened
-    before this existed."""
-    proc = subprocess.Popen(["bash", VALIDATOR], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                            text=True, start_new_session=True)
-    try:
-        out, err = proc.communicate(timeout=VALIDATOR_TIMEOUT)
-        return proc.returncode, out, err
-    except subprocess.TimeoutExpired:
-        try:
-            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
-        except ProcessLookupError:
-            pass
-        out, err = proc.communicate()
-        detail = (f"{VALIDATOR} exceeded {VALIDATOR_TIMEOUT:.0f}s and was killed (whole "
-                 f"process group) — likely hung rather than failed cleanly (e.g. a generated "
-                 f"test recursively invoking the validator or test runner itself)")
-        return -1, out, f"{detail}\n{err}"
-
-
-def run_validator(label: str, expect_zero: bool, runs: int = 1) -> Tuple[bool, str]:
-    if not os.path.isfile(VALIDATOR):
-        return True, f"skipped: no {VALIDATOR} yet (empty validator — see HARNESS.md)"
-    for _ in range(runs):
-        code, out, err = _run_validator_once()
-        ok = (code == 0) == expect_zero
-        if not ok:
-            return False, f"{label}: exit {code}, expected {'0' if expect_zero else 'non-zero'}\n{out[-2000:]}\n{err[-2000:]}"
-    return True, f"{label}: {VALIDATOR} exit matched expectation across {runs} run(s)"
-
+# --- the run context ------------------------------------------------------------------------
 
 class PlanBuildContext:
-    """What `run_agent`/`run_check` need beyond the generic `context` dict: the issue,
-    a run-scoped scratch dir for the plan file, and where new test files were discovered."""
+    """Everything a step needs beyond the loop's `context` dict.
+
+    `repo_dir` is where git and the validator run (a submodule or the repo root);
+    `base_ref` is what the work is compared against. `invoke` sends one agent turn and
+    defaults to `agents.invoke_kiro`; `harness/run_story.py` wraps it to add the story's
+    repository preamble and the real diff for the review step. `on_output(line)` and
+    `on_process(proc_or_None)` let a UI stream validator output and stop it.
+
+    `state()` / `restore()` carry the fields later steps depend on, so a caller that
+    checkpoints after each step can resume a run in a new process.
+    """
+
+    STATE_FIELDS = ("issue_id", "run_dir", "base_ref", "repo_dir", "new_test_files",
+                    "tests_commit", "tests_status")
 
     def __init__(self, issue_id: str, issue_text: str, prompts_dir: str, agent: str,
-                reviewer: str, run_dir: str):
+                 reviewer: str, run_dir: str, *, base_ref: Optional[str] = None,
+                 repo_dir: Optional[str] = None, invoke: Optional[Invoker] = None,
+                 validator: Optional[str] = None,
+                 on_output: Optional[Callable[[str], None]] = None,
+                 on_process: Optional[Callable[[Optional[subprocess.Popen]], None]] = None):
         self.issue_id = issue_id
         self.issue_text = issue_text
         self.prompts_dir = prompts_dir
         self.agent = agent
         self.reviewer = reviewer
         self.run_dir = run_dir
+        self.base_ref = base_ref or os.getenv("VALIDATE_BASE_REF") or "HEAD"
+        self.repo_dir = repo_dir or os.getenv("HARNESS_TARGET_REPO") or os.getcwd()
+        self.invoke: Invoker = invoke or invoke_kiro
+        self.validator = validator or VALIDATOR
+        self.on_output = on_output
+        self.on_process = on_process
         self.new_test_files: List[str] = []
+        self.tests_commit: Optional[str] = None
+        self.tests_status: Optional[str] = None
+
+    def state(self) -> Dict[str, object]:
+        return {k: getattr(self, k) for k in self.STATE_FIELDS}
+
+    def restore(self, state: Dict[str, object]) -> "PlanBuildContext":
+        for k in self.STATE_FIELDS:
+            if k in state:
+                setattr(self, k, state[k])
+        return self
+
+    def git(self, *args: str) -> Tuple[int, str]:
+        return _git(*args, cwd=self.repo_dir)
+
+    def head(self) -> str:
+        return self.git("rev-parse", "HEAD")[1]
+
+
+# --- validator ------------------------------------------------------------------------------
+
+def _run_validator_once(pbc: Optional[PlanBuildContext]) -> Tuple[int, str]:
+    validator = pbc.validator if pbc else VALIDATOR
+    flags = subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0  # type: ignore[attr-defined]
+    proc = subprocess.Popen([find_bash(), validator], stdout=subprocess.PIPE,
+                            stderr=subprocess.STDOUT, text=True, encoding="utf-8",
+                            errors="replace", creationflags=flags,
+                            start_new_session=(os.name != "nt"))
+    if pbc and pbc.on_process:
+        pbc.on_process(proc)
+    timed_out = threading.Event()
+
+    def _timeout() -> None:
+        timed_out.set()
+        kill_tree(proc)
+
+    timer = threading.Timer(VALIDATOR_TIMEOUT, _timeout)
+    timer.start()
+    lines: List[str] = []
+    try:
+        for line in proc.stdout:  # type: ignore[union-attr]
+            line = line.rstrip("\n")
+            lines.append(line)
+            if pbc and pbc.on_output:
+                pbc.on_output(line)
+        code = proc.wait()
+    finally:
+        timer.cancel()
+        if proc.stdout:
+            proc.stdout.close()
+        if pbc and pbc.on_process:
+            pbc.on_process(None)
+    out = "\n".join(lines)
+    if timed_out.is_set():
+        return -1, (f"{validator} exceeded {VALIDATOR_TIMEOUT:.0f}s and was killed (whole process "
+                    f"tree) — likely hung rather than failed cleanly\n{out}")
+    return code, out
+
+
+def run_validator(label: str, expect_zero: bool, runs: int = 1,
+                  pbc: Optional[PlanBuildContext] = None) -> Tuple[bool, str]:
+    validator = pbc.validator if pbc else VALIDATOR
+    if not os.path.isfile(validator):
+        return True, f"skipped: no {validator} yet (empty validator — see HARNESS.md)"
+    for _ in range(runs):
+        code, out = _run_validator_once(pbc)
+        if (code == 0) != expect_zero:
+            return False, f"{label}: exit {code}, expected {'0' if expect_zero else 'non-zero'}\n{out[-4000:]}"
+    return True, f"{label}: {validator} exit matched expectation across {runs} run(s)"
+
+
+# --- agent steps ----------------------------------------------------------------------------
+
+def _resolve_plan(path_line: str, pbc: PlanBuildContext) -> Optional[str]:
+    """The plan templates reply with the repo-relative path of the plan file they wrote.
+    Accept it relative to the process cwd (the parent repo) or to the target repo."""
+    p = path_line.strip().strip("`").replace("\\", "/")
+    for base in (os.getcwd(), pbc.repo_dir):
+        cand = os.path.normpath(os.path.join(base, p))
+        if os.path.isfile(cand):
+            return os.path.relpath(cand, os.getcwd()).replace(os.sep, "/")
+    return None
 
 
 def make_run_agent(pbc: PlanBuildContext) -> loop_driver.AgentRunner:
     def run_agent(step: dict, context: dict) -> str:
         name = step["name"]
-        prompt = step["prompt"]
-        agent = pbc.reviewer if name == "review" else pbc.agent
+        template = step["prompt"]
+        # The workflow names the tool boundary per step; the read-only reviewer for
+        # `classify` and `review`, the builder for the rest.
+        agent = pbc.reviewer if step.get("agent") == "reviewer" else pbc.agent
+
+        def ask(**values: object) -> str:
+            rendered = prompts.render(pbc.prompts_dir, template, **values)
+            return pbc.invoke(rendered.text, agent=agent, step=name, template=template,
+                              params=rendered.params)
 
         if name == "classify":
-            rendered = prompts.render(pbc.prompts_dir, prompt, ARGUMENTS=pbc.issue_text)
-            reply = invoke_kiro(rendered.text, agent=agent, step="classify", template=prompt,
-                                params=rendered.params)
-            block = prompts.extract(reply, "CLASSIFICATION")
+            block = prompts.extract(ask(issue=pbc.issue_text), "CLASSIFICATION")
             if block is None:
                 raise RuntimeError("classify_issue reply had no <<<CLASSIFICATION>>> envelope")
-            return json.loads(block)["type"]
+            info = json.loads(block)
+            context["classification_info"] = info
+            return info["type"]
 
         if name == "plan":
-            rendered = prompts.render(pbc.prompts_dir, prompt, ARGUMENTS=pbc.issue_text)
-            reply = invoke_kiro(rendered.text, agent=agent, step="plan", template=prompt,
-                                params=rendered.params)
-            spec_text = prompts.extract(reply, "SPEC")
-            if spec_text is None:
-                raise RuntimeError(f"{prompt} reply had no <<<SPEC>>> envelope")
-            path = os.path.join(pbc.run_dir, "plan.md")
-            os.makedirs(pbc.run_dir, exist_ok=True)
-            with open(path, "w", encoding="utf-8") as fh:
-                fh.write(spec_text)
+            spec = prompts.extract(ask(issue=pbc.issue_text, classification=context["classification"]),
+                                   "SPEC")
+            if spec is None:
+                raise RuntimeError(f"{template} reply had no <<<SPEC>>> envelope")
+            line = next((ln for ln in spec.splitlines() if ln.strip()), "")
+            path = _resolve_plan(line, pbc)
+            if path is None:
+                raise RuntimeError(f"plan file `{line.strip()}` from <<<SPEC>>> does not exist")
             context["plan_file_path"] = path
-            return spec_text
+            return path
 
-        if name in ("write_tests", "implement"):
-            rendered = prompts.render(pbc.prompts_dir, prompt, ARGUMENTS=context["plan_file_path"])
-            reply = invoke_kiro(rendered.text, agent=agent, step=name, template=prompt,
-                                params=rendered.params)
-            if name == "write_tests":
-                pbc.new_test_files = _changed_files()
+        if name == "write_tests":
+            reply = ask(plan_file_path=context["plan_file_path"])
+            block = prompts.extract(reply, "TESTS")
+            tests = json.loads(block) if block else {}
+            context["tests"] = tests
+            pbc.tests_status = tests.get("status")
+            pbc.new_test_files = _changed_files(pbc.repo_dir)
             return reply
 
+        if name == "implement":
+            return ask(plan_file_path=context["plan_file_path"])
+
         if name == "review":
-            payload = json.dumps({"issue": pbc.issue_text, "plan_file_path": context["plan_file_path"]},
-                                 indent=2)
-            rendered = prompts.render(pbc.prompts_dir, prompt, ARGUMENTS=payload)
-            reply = invoke_kiro(rendered.text, agent=agent, step="review", template=prompt,
-                                params=rendered.params)
-            block = prompts.extract(reply, "REVIEW")
+            block = prompts.extract(ask(plan_file_path=context["plan_file_path"], base_ref=pbc.base_ref),
+                                    "REVIEW")
             if block is None:
                 raise RuntimeError("review reply had no <<<REVIEW>>> envelope")
             return block
 
         if name in ("commit_tests", "commit"):
-            verdict = context.get("result:review")
-            if name == "commit" and verdict is not None and verdict.strip().splitlines()[-1].strip() != "APPROVE":
-                raise RuntimeError(f"review did not APPROVE (last line: "
-                                   f"{verdict.strip().splitlines()[-1]!r}) — refusing to commit")
-            files = pbc.new_test_files if name == "commit_tests" else _changed_files()
-            payload = json.dumps({"mode": name, "files": files, "issue_id": pbc.issue_id,
-                                  "work_type": context.get("classification")}, indent=2)
-            rendered = prompts.render(pbc.prompts_dir, prompt, ARGUMENTS=payload)
-            return invoke_kiro(rendered.text, agent=agent, step=name, template=prompt,
-                               params=rendered.params)
+            if name == "commit":
+                verdict = (context.get("result:review") or "").strip().splitlines()
+                last = verdict[-1].strip() if verdict else ""
+                if last != "APPROVE":
+                    raise RuntimeError(f"review did not APPROVE (last line: {last!r}) — refusing to commit")
+            if name == "commit_tests" and (context.get("classification") in NO_TDD
+                                           or pbc.tests_status == "skipped" or not pbc.new_test_files):
+                return "skipped: no tests to commit for this work type"
+            before = pbc.head()
+            reply = ask(plan_file_path=context["plan_file_path"],
+                        scope="tests" if name == "commit_tests" else "full")
+            after = pbc.head()
+            if after == before:
+                raise RuntimeError(f"{name}: the agent made no commit")
+            if name == "commit_tests":
+                pbc.tests_commit = after
+            context[f"{name}_sha"] = after
+            return reply
 
         raise RuntimeError(f"run_plan_build.py has no wiring for agent step `{name}`")
     return run_agent
 
 
-def run_check(step: dict, context: dict) -> Tuple[bool, str]:
-    name = step["name"]
-    if name == "red":
-        return run_validator("red", expect_zero=False, runs=2)
-    if name == "green":
-        return run_validator("green", expect_zero=True, runs=2)
-    if name == "validate":
-        return run_validator("validate", expect_zero=True, runs=1)
-    return True, f"no deterministic check wired for `{name}` — treating as a no-op"
+# --- deterministic checks -------------------------------------------------------------------
+
+def make_run_check(pbc: Optional[PlanBuildContext]) -> loop_driver.CheckRunner:
+    def run_check(step: dict, context: dict) -> Tuple[bool, str]:
+        name = step["name"]
+        tdd_off = context.get("classification") in NO_TDD or (pbc and pbc.tests_status == "skipped")
+
+        if name == "plan_exists":
+            path = context.get("plan_file_path") or ""
+            text = ""
+            if path and os.path.isfile(path):
+                with open(path, encoding="utf-8") as fh:
+                    text = fh.read()
+            problems = []
+            if not text:
+                problems.append(f"plan file `{path}` missing")
+            elif pbc and not pbc.issue_id.startswith("issue-") and pbc.issue_id not in text:
+                problems.append(f"plan does not cite {pbc.issue_id}")
+            if text and not re.search(r"^\s*\d+[.)].*\bshall\b", text, re.M | re.I):
+                problems.append("no numbered criterion containing 'shall'")
+            return (not problems), ("; ".join(problems) or "plan cites the story and has numbered 'shall' criteria")
+
+        if name == "red":
+            if tdd_off:
+                return True, "skipped: no TDD for this work type or tests were skipped"
+            return run_validator("red", expect_zero=False, runs=2, pbc=pbc)
+
+        if name == "tests_unchanged":
+            if not pbc or not pbc.tests_commit:
+                return True, "skipped: commit_tests made no commit"
+            _, files = pbc.git("show", "--name-only", "--format=", pbc.tests_commit)
+            paths = [f for f in files.splitlines() if f.strip()]
+            if not paths:
+                return True, "skipped: the tests commit has no files"
+            code, out = pbc.git("diff", "--name-only", pbc.tests_commit, "--", *paths)
+            changed = [f for f in out.splitlines() if f.strip()]
+            if code != 0 or changed:
+                return False, "implement changed files committed by commit_tests: " + ", ".join(changed or [out])
+            return True, f"{len(paths)} file(s) from commit_tests byte-identical"
+
+        if name == "green":
+            return run_validator("green", expect_zero=True, runs=2, pbc=pbc)
+        if name == "validate":
+            return run_validator("validate", expect_zero=True, runs=1, pbc=pbc)
+        return True, f"no deterministic check wired for `{name}` — treating as a no-op"
+    return run_check
+
+
+# Backward-compatible module-level check (no context): validator checks only.
+run_check = make_run_check(None)
+
+
+# --- entrypoints ----------------------------------------------------------------------------
+
+def load_workflow(workflow_path: str = WORKFLOW_PATH) -> dict:
+    with open(workflow_path, encoding="utf-8") as fh:
+        return json.load(fh)
+
+
+def run_step(workflow: dict, step: dict, context: dict, pbc: PlanBuildContext,
+             log: Callable[[str], None] = lambda m: None) -> loop_driver.StepResult:
+    """Run ONE workflow step with the same semantics as the full loop (classify sets
+    `classification`, agent replies land in `result:<step>`, failed checks raise
+    `LoopFailed`). Used by callers that checkpoint between steps."""
+    single = {**workflow, "steps": [step]}
+    return loop_driver.run_loop(single, context, make_run_agent(pbc), make_run_check(pbc), log=log)[0]
+
+
+def run_pbc(pbc: PlanBuildContext, workflow_path: str = WORKFLOW_PATH,
+            log: Callable[[str], None] = print) -> List[loop_driver.StepResult]:
+    return loop_driver.run_loop(load_workflow(workflow_path), {"issue": pbc.issue_text},
+                                make_run_agent(pbc), make_run_check(pbc), log=log)
 
 
 def _run(issue_id: str, issue_text: str, workflow_path: str, prompts_dir: str, agent: str,
-        reviewer: str) -> List:
-    """Shared core: load the workflow, build the context, run the loop. Raises on any step
-    failure (`main()` lets that reach the terminal as a traceback, same as always)."""
+         reviewer: str) -> List:
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     run_dir = os.path.join(".harness-runs", f"{stamp}-{issue_id}")
     set_audit_sink(AuditSink(f"plan_build-{stamp}", base_dir="agents", trigger_type="plan_build"))
-    with open(workflow_path, encoding="utf-8") as fh:
-        workflow = json.load(fh)
     pbc = PlanBuildContext(issue_id, issue_text, prompts_dir, agent, reviewer, run_dir)
-    return loop_driver.run_loop(workflow, {"issue": issue_text}, make_run_agent(pbc), run_check,
-                                log=print)
+    return run_pbc(pbc, workflow_path)
 
 
 def run_issue(issue_id: str, issue_text: str, *, workflow_path: str = WORKFLOW_PATH,
-             prompts_dir: str = PROMPTS_DIR, agent: str = "builder",
-             reviewer: str = "reviewer") -> Tuple[bool, List, str]:
+              prompts_dir: str = PROMPTS_DIR, agent: str = "builder",
+              reviewer: str = "reviewer") -> Tuple[bool, List, str]:
     """Run one issue through the full loop without raising — `run_implement.py`'s backlog
-    loop needs one bad PBI to come back as `(False, [], detail)`, never a crash that takes
-    the rest of the reservoir down with it. `main()` (interactive, single-issue use) calls
-    `_run` directly instead, so a human still sees the real traceback."""
+    loop needs one bad PBI to come back as `(False, [], detail)`."""
     try:
         return True, _run(issue_id, issue_text, workflow_path, prompts_dir, agent, reviewer), ""
     except Exception as e:                          # noqa: BLE001 - isolate one PBI's failure
