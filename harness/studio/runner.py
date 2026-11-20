@@ -16,8 +16,10 @@ before anything is pushed.
 
 from __future__ import annotations
 
+import datetime as dt
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -326,10 +328,49 @@ class Runner:
             return {"status": "rejected"}
         if action != "approve":
             raise ValueError("action must be approve or reject")
+        marked = self._mark_story_done(rid, run)      # raises (and leaves the run in review) on a git error
         self.db.update_step(rid, idx, status="ok", ended_at=now(), detail=f"approved: {note}".strip())
         self.db.update_run(rid, status="completed")
         self.db.event(rid, "phase", f"approved by a human; push {run['branch']} and open a PR")
-        return {"status": "completed"}
+        return {"status": "completed", "story_marked_done": marked}
+
+    def _mark_story_done(self, rid: str, run: dict) -> str:
+        """On approval, set `status: done` in the story file and commit just that file, so the
+        pull request that is merged already carries it (docs/0001: the PR sets done).
+
+        Planning story: committed on the story branch, in the same repository as the work.
+        Code story: the story file lives in this (parent) repository while the work is in a
+        submodule, so the file is committed on the parent's current branch; it is skipped when
+        that is `main`/`master`, which only accepts pull requests. Returns a short description."""
+        sr = run_story.StoryRun.from_dict(run["context"]["story_run"])
+        story = run_story.load_stories()[sr.sid]
+        path = story["path"]
+        rel = os.path.relpath(path, ROOT).replace(os.sep, "/")
+        if (story["meta"].get("status") or "").strip() == "done":
+            return "already done"
+        if sr.target == ROOT:
+            run_story.resume(sr)                      # be on the story branch
+        else:
+            parent = run_story.git(ROOT, "rev-parse", "--abbrev-ref", "HEAD")[1].strip()
+            if parent in ("main", "master", "HEAD"):
+                note = (f"story file not updated: the parent repository is on {parent}. Check out a working "
+                        f"branch and set status: done in {rel}, or run record after the merge")
+                self.db.event(rid, "warn", note)
+                return note
+        with open(path, encoding="utf-8") as fh:
+            text = fh.read()
+        text = re.sub(r"^status:.*$", "status: done", text, count=1, flags=re.M)
+        text = text.rstrip("\n") + f"\n- {dt.date.today().isoformat()}: done (approved in Studio)\n"
+        with open(path, "w", encoding="utf-8", newline="\n") as fh:
+            fh.write(text)
+        for args in (("add", "--", rel), ("commit", "-m", f"Record {sr.sid} done", "--", rel)):
+            code, out = run_story.git(ROOT, *args)
+            if code != 0:
+                run_story.git(ROOT, "checkout", "--", rel)      # leave the story file as it was
+                raise ValueError(f"could not record {sr.sid} as done: {out.strip()[:400]}")
+        sha = run_story.git(ROOT, "rev-parse", "--short", "HEAD")[1].strip()
+        self.db.event(rid, "phase", f"story {sr.sid} marked done in {rel} (commit {sha})")
+        return f"committed {sha}"
 
     # --- thread ---------------------------------------------------------------------------
 
