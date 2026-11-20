@@ -35,3 +35,4 @@ user-stories/
 - `tier: build` runs in the CapNexus sandbox with no Mitsui dependency. `tier: integrate` needs Mitsui's environment or approval.
 - `executor`: `agent` runs end to end, `human` is a human task, `mixed` has both.
 - Every acceptance criterion has a `verify:` or a `gate:`.
+- Check the trackers with `bash scripts/check-dependency-register.sh` and `bash scripts/check-raid-log.sh` (run from this folder). Each exits non-zero and lists every finding when an item is missing or incomplete.
