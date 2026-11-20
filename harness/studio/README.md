@@ -68,7 +68,7 @@ approve/reject gate before anything is pushed. A run started in Studio and
 | harness-db | SQLite at `harness/studio/data/harness.db` (git-ignored): runs, steps, loop and harness state, and every console event. Kiro's raw audit logs go to `harness/studio/data/audit/`. |
 | Resume and re-run | Every step is checkpointed. A stopped, failed or interrupted run (including a server restart) resumes at the first unfinished step, on its branch. **Re-run from step** runs a chosen step and all later ones again. `commit` is skipped when nothing is left to commit. |
 | Branch | Suggested as `story/<ID>-<title-slug>` (the CLI default is `story/<ID>`), editable, created in the story's `repo:` from its current branch. |
-| Commits | As the harness intends: the builder commits the tests (`commit_tests`), then the change once the reviewer agent says APPROVE (`commit`), on the story branch. The run then waits at **human review**: commits, verdict, findings and diff. Approve (ready to push) or reject. Nothing is pushed. |
+| Commits | As the harness intends: the builder commits the tests (`commit_tests`), then the change once the reviewer agent says APPROVE (`commit`), on the story branch. The run then waits at **human review**: commits, verdict, findings and diff. Approve (ready to push) or reject. Approving also sets `status: done` in the story file and commits that one file (`Record <id> done`): on the story branch for a planning story, on the parent repository's current branch for a code story (skipped on `main`). Nothing is pushed. |
 
 ## Files
 

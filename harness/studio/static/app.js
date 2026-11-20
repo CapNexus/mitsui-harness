@@ -462,7 +462,7 @@ async function viewReview() {
   const act = async (action) => {
     try {
       await api(`/api/runs/${i.id}/review`, { method: "POST", body: JSON.stringify({ action, note: $("#rvNote").value }) });
-      toast(action === "approve" ? "Approved. Next: push and open a pull request." : "Rejected. The commits stay on the branch.");
+      toast(action === "approve" ? "Approved and the story is marked done on the branch. Next: push and open a pull request." : "Rejected. The commits stay on the branch.");
       await refreshStory(); refreshRun(); if (action === "approve") go("ship");
     } catch (e) { toast(e.message); }
   };
@@ -481,8 +481,8 @@ async function viewShip() {
     <h4>2. Open a pull request</h4>
     ${d.compare_url ? `<p><a href="${esc(d.compare_url)}" target="_blank" rel="noopener">Open a pull request for ${esc(d.branch)} ↗</a></p>` : `<p>Open a pull request for <code>${esc(d.branch)}</code> on the repository's web page.</p>`}
     <p class="muted small">A teammate reviews and merges it.${s.repo === "planning" ? " Planning changes go into <code>main</code>, which only accepts pull requests." : ""}</p>
-    ${d.record_cmd ? `<h4>3. After it is merged: record the story as done</h4><p class="muted small">This commits the new submodule version and <code>status: done</code> together in this repository.</p>${cmd(d.record_cmd)}`
-      : `<h4>3. After it is merged</h4><p>Set <code>status: done</code> in the story file, in the same pull request or a follow-up.</p>`}`;
+    ${d.record_cmd ? `<h4>3. After it is merged: record the new submodule version</h4><p class="muted small">Approving already set <code>status: done</code> in the story file here (when this repository was on a working branch). This command also commits the new submodule version.</p>${cmd(d.record_cmd)}`
+      : `<h4>3. After it is merged</h4><p>Nothing more to do. Approving already set <code>status: done</code> in the story file and committed it on <code>${esc(d.branch)}</code>, so the pull request carries it.</p>`}`;
 }
 
 function viewHistory() {
