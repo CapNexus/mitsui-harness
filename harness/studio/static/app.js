@@ -75,6 +75,8 @@ const stepTitle = (n) => (STEP_INFO[n] || [n])[0];
 function failureHint(step, detail) {
   const d = (detail || "").toLowerCase();
   if (d.includes("permission") || d.includes("denied")) return "Kiro was not allowed to write or run commands. Start Studio with the launcher (studio.cmd or ./studio.sh) so AEW_AUTO_APPROVE is on, then Resume.";
+  if (d.includes("acp turn idle")) return "Kiro produced no output or tool activity for 10 minutes, so the step was stopped as stuck. Resume to try again. Set BOOTSTRAP_STEP_IDLE_TIMEOUT (seconds) before starting Studio if a single tool legitimately needs longer.";
+  if (d.includes("acp turn exceeded")) return "Kiro kept working past the 90-minute limit for one step. Resume continues from where the files are. Set BOOTSTRAP_STEP_TIMEOUT (seconds) before starting Studio to allow longer, or split the story.";
   if (d.includes("envelope")) return "Kiro's answer did not follow the expected format. This is usually a one-off: Resume to run the step again.";
   const hints = {
     readiness: "A story file could not be read. Check the story's front-matter, then run the analysis again.",

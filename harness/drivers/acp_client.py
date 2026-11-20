@@ -32,6 +32,7 @@ import logging
 import os
 import sys
 import threading
+import time
 from concurrent.futures import Future
 from concurrent.futures import TimeoutError as FutureTimeout
 from dataclasses import dataclass, field
@@ -55,6 +56,24 @@ from audit import AuditSink, StepAudit  # noqa: E402
 logger = logging.getLogger(__name__)
 
 KIRO_CLI_PATH = os.getenv("KIRO_CLI_PATH", "kiro-cli")
+
+# A turn is cut off for one of two reasons, never for merely being long:
+#   * idle: no agent text, thinking, tool call or permission request for this many seconds
+#     (a hung agent or a stuck tool). Set high enough for one silent tool such as `npm ci`.
+#   * hard cap: total wall-clock for one turn, a backstop against an agent that never stops.
+# A large story (for example scaffolding a whole repository) legitimately works for far
+# longer than 15 minutes while steadily producing events, so a short fixed limit is wrong.
+DEFAULT_IDLE_TIMEOUT = 600.0
+DEFAULT_MAX_TIMEOUT = 5400.0
+WATCHDOG_POLL = 5.0
+
+
+def _env_seconds(name: str, default: float) -> float:
+    try:
+        value = float(os.getenv(name, ""))
+    except ValueError:
+        return default
+    return value if value > 0 else default
 
 # stop_reason values that are *not* successful completion.
 _ERROR_STOP_REASONS = {"max_tokens", "max_turn_requests", "refusal", "cancelled"}
@@ -86,6 +105,10 @@ class _AEWClient(Client):
         self.tool_calls: List[str] = []
         self.last_usage: Optional[Any] = None
         self._audit: Optional[StepAudit] = None
+        self.last_activity = time.monotonic()   # read by the turn watchdog in KiroACPClient._run
+
+    def touch(self) -> None:
+        self.last_activity = time.monotonic()
 
     def set_audit(self, step_audit: Optional[StepAudit]) -> None:
         self._audit = step_audit
@@ -98,6 +121,7 @@ class _AEWClient(Client):
     async def request_permission(
         self, *, session_id: str, tool_call: Any, options: List[Any], **_: Any
     ) -> RequestPermissionResponse:
+        self.touch()
         title = getattr(tool_call, "title", None) or getattr(tool_call, "tool_call_id", "?")
         if self._audit is not None:
             self._audit.record(
@@ -135,6 +159,7 @@ class _AEWClient(Client):
         )
 
     async def session_update(self, *, session_id: str, update: Any, **_: Any) -> None:
+        self.touch()
         kind = getattr(update, "session_update", None)
 
         if kind == "agent_message_chunk":
@@ -256,14 +281,33 @@ class KiroACPClient:
     def _run(self, coro) -> Any:
         assert self._loop is not None, "client not started"
         fut: Future = asyncio.run_coroutine_threadsafe(coro, self._loop)
-        # A stalled turn must not hang the whole run: BOOTSTRAP_STEP_TIMEOUT seconds
-        # (default 900) then a TimeoutError the step runner treats as a failed attempt.
-        timeout = float(os.getenv("BOOTSTRAP_STEP_TIMEOUT", "900"))
-        try:
-            return fut.result(timeout=timeout)
-        except (TimeoutError, FutureTimeout) as e:
-            fut.cancel()
-            raise TimeoutError(f"ACP turn exceeded {timeout:.0f}s") from e
+        # A stalled turn must not hang the whole run, but a busy one must not be cut off.
+        # BOOTSTRAP_STEP_IDLE_TIMEOUT: seconds without any agent event (default 600).
+        # BOOTSTRAP_STEP_TIMEOUT: hard cap on the whole turn (default 5400).
+        # Either raises a TimeoutError the step runner treats as a failed attempt.
+        idle_limit = _env_seconds("BOOTSTRAP_STEP_IDLE_TIMEOUT", DEFAULT_IDLE_TIMEOUT)
+        hard_cap = _env_seconds("BOOTSTRAP_STEP_TIMEOUT", DEFAULT_MAX_TIMEOUT)
+        poll = min(WATCHDOG_POLL, max(idle_limit / 4, 0.05))
+        started = time.monotonic()
+        if self._client is not None:
+            self._client.touch()
+        while True:
+            try:
+                return fut.result(timeout=poll)
+            except (TimeoutError, FutureTimeout):
+                if fut.done():      # the turn itself raised a timeout; do not keep waiting
+                    raise
+            now = time.monotonic()
+            last = self._client.last_activity if self._client is not None else started
+            if now - started > hard_cap:
+                fut.cancel()
+                raise TimeoutError(f"ACP turn exceeded {hard_cap:.0f}s (hard cap)")
+            if now - max(last, started) > idle_limit:
+                fut.cancel()
+                raise TimeoutError(
+                    f"ACP turn idle for {idle_limit:.0f}s (no agent output or tool activity); "
+                    f"it ran {now - started:.0f}s in total"
+                )
 
     async def _start_async(self) -> None:
         env = os.environ.copy()
