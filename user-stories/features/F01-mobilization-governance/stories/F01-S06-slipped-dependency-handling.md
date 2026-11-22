@@ -6,7 +6,7 @@ tier: build
 executor: mixed
 owner: Mike
 repo: planning
-status: ready
+status: done
 sow: D1
 due: 2026-11-20
 blocked_by: []
@@ -46,3 +46,4 @@ The register row and the `check-overdue.sh` output.
 
 - 2026-11-17: created
 - 2026-11-20: scope cut to `check-overdue.sh` (RAID D-13); `shift-plan.sh` dropped.
+- 2026-11-20: done. `check-overdue.sh` built and reviewed; validate.sh planning mode passes. No slip on 2026-11-20, so the approval gate did not trigger.
