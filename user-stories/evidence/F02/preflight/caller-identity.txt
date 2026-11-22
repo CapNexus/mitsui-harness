@@ -1,0 +1,10 @@
+F02-S01 AC1 evidence (account ID and role name only; no keys, tokens or external ID)
+
+Date:     2026-11-22
+Profile:  CapNexus SSO profile `mit`, then `aws sts assume-role --role-session-name capnexus`
+Account:  166390307071 (AWSMEP-Management-Team Identity Delegated Admin)
+Role:     CapNexusDeploymentRole
+Result:   assume-role succeeded without external ID or MFA (RAID I-10, accepted in D-14)
+
+Source of the values: output shown by Soma Muniyappa, 2026-11-22. Soma saves the live
+`aws sts get-caller-identity` output here to close the gate.

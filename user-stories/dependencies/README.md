@@ -21,7 +21,7 @@ Status values: `open`, `requested`, `in-progress`, `resolved`, `slipped`. A `sli
 | ID | Dependency | Owner (Mitsui) | Needed by | Type | Status | Used by features | Notes |
 |---|---|---|---|---|---|---|---|
 | DEP-01 | Named owners and backups | Noah Jackson | Nov 16 | D | resolved | F1 | Owners named at the team meeting; no backups named, backups optional (RAID D-09). Attested by Soma Muniyappa 2026-11-20. |
-| DEP-02 | Management account, root MFA, cross-account role | Noah Jackson, Matt Schiefelbein | Nov 17 | D+B | in-progress | F2, F3, F6 | Control Tower set up; management account update expected week of 2026-11-23 (Soma Muniyappa, 2026-11-20). |
+| DEP-02 | Management account, root MFA, cross-account role | Noah Jackson, Matt Schiefelbein | Nov 17 | D+B | in-progress | F2, F3, F6 | Control Tower set up by Mitsui in management account 463768556578 (all-features mode). CapNexus has CapNexusDeploymentRole in the Identity Delegated Admin account 166390307071 without external ID or MFA; role accepted without them (RAID D-14). No management-account role yet; Mitsui answers management-account questions in writing (Soma Muniyappa, 2026-11-22). |
 | DEP-03 | Three account emails | Noah Jackson | Nov 18 | D+A | open | F2, F4 | |
 | DEP-04 | Change-freeze calendar and CAB rules | Noah Jackson | Week 1 | C | open | F1, F3 | |
 | DEP-05 | InfoSec, vendor and data-copy approval | Noah Jackson (names reviewer) | Week 1 and ongoing | C | open | F3, F4 | |

@@ -31,16 +31,16 @@ Source: `WDA-POC-Feature-List.md`, F2. Drift and compliance exports run again on
 
 | ID | Title | Tier | Executor | Blocked by | Status |
 |---|---|---|---|---|---|
-| [F02-S01](stories/F02-S01-preflight-and-service-availability.md) | Run the pre-flight checks and confirm services in us-east-1 | integrate | mixed | DEP-02, DEP-06 | blocked |
+| [F02-S01](stories/F02-S01-preflight-and-service-availability.md) | Run the pre-flight checks and confirm services in us-east-1 | integrate | mixed | DEP-06 | in-progress |
 | [F02-S02](stories/F02-S02-cdk-app-and-pipeline-skeleton.md) | Create the CDK app and pipeline skeleton | build | agent | none | ready |
 | [F02-S03](stories/F02-S03-kms-and-logging-baseline.md) | Build the KMS key and log encryption baseline | build | agent | none | ready |
 | [F02-S04](stories/F02-S04-budget-alert-construct.md) | Build the AWS Budgets alert | build | agent | none | ready |
 | [F02-S05](stories/F02-S05-teardown-script.md) | Write and test the teardown script | build | agent | none | ready |
-| [F02-S06](stories/F02-S06-control-tower-landing-zone.md) | Launch the Control Tower landing zone with Region-deny exceptions | integrate | mixed | DEP-02, DEP-03 | blocked |
-| [F02-S07](stories/F02-S07-poc-account-and-identity-center.md) | Create the POC workload account and enable IAM Identity Center | integrate | mixed | DEP-02, DEP-03 | blocked |
+| [F02-S06](stories/F02-S06-control-tower-landing-zone.md) | Verify the Control Tower landing zone and Region-deny exceptions | integrate | mixed | DEP-02 | blocked |
+| [F02-S07](stories/F02-S07-poc-account-and-identity-center.md) | Verify the POC workload account and IAM Identity Center | integrate | mixed | DEP-02 | blocked |
 | [F02-S08](stories/F02-S08-bedrock-claude-access.md) | Prove a Bedrock Claude call works from the POC account | integrate | mixed | DEP-06 | blocked |
 | [F02-S09](stories/F02-S09-pipeline-deploy-and-budget-test.md) | Deploy the baseline through the pipeline and test the budget alert | integrate | mixed | DEP-25, DEP-26 | blocked |
-| [F02-S10](stories/F02-S10-remove-cross-account-role.md) | Confirm the temporary cross-account role is deleted | integrate | human | DEP-02 | blocked |
+| [F02-S10](stories/F02-S10-remove-cross-account-role.md) | Confirm the elevated cross-account access is removed or scoped | integrate | human | DEP-02 | blocked |
 | [F02-S11](stories/F02-S11-control-tower-evidence-exports.md) | Export Control Tower drift and compliance evidence | integrate | mixed | DEP-02 | blocked |
 | [F02-S12](stories/F02-S12-code-repo-skeleton-and-baseline-lookup.md) | Create the project CDK app, pipeline and baseline lookup in the Code repository | build | agent | none | ready |
 | [F02-S13](stories/F02-S13-publish-baseline-contract.md) | Publish the baseline contract for the Code repository | build | agent | none | ready |
