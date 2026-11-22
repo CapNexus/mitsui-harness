@@ -3,11 +3,11 @@
   "description": "Write-capable agent that writes plans, tests and code and runs the evidenced npm scripts and git.",
   "model": "auto",
   "tools": [
-    "read",
-    "grep",
     "glob",
-    "write",
-    "shell"
+    "grep",
+    "read",
+    "shell",
+    "write"
   ],
   "allowedTools": [
     "read",
@@ -21,20 +21,53 @@
     "file://.kiro/steering/infra.md",
     "file://.kiro/steering/testing.md"
   ],
-  "hooks": {
-    "preToolUse": [
+  "hooks": [
+    {
+      "name": "preToolUse-0",
+      "trigger": "preToolUse",
+      "matcher": "fs_write|execute_bash",
+      "action": {
+        "type": "command",
+        "command": "uv run python3 scripts/hooks/guard-answer-key.py"
+      },
+      "timeout": 10
+    },
+    {
+      "name": "preToolUse-1",
+      "trigger": "preToolUse",
+      "matcher": "execute_bash",
+      "action": {
+        "type": "command",
+        "command": "uv run python3 scripts/hooks/block-aws-mutation.py"
+      },
+      "timeout": 10
+    },
+    {
+      "name": "preToolUse-2",
+      "trigger": "preToolUse",
+      "matcher": "fs_write|execute_bash",
+      "action": {
+        "type": "command",
+        "command": "uv run python3 scripts/hooks/scan-secrets.py"
+      },
+      "timeout": 10
+    }
+  ],
+  "permissions": {
+    "rules": [
       {
-        "command": "uv run python3 scripts/hooks/guard-answer-key.py",
-        "matcher": "fs_write|execute_bash"
+        "capability": "fs_read",
+        "effect": "allow"
       },
       {
-        "command": "uv run python3 scripts/hooks/block-aws-mutation.py",
-        "matcher": "execute_bash"
-      },
-      {
-        "command": "uv run python3 scripts/hooks/scan-secrets.py",
-        "matcher": "fs_write|execute_bash"
+        "capability": "skill",
+        "effect": "allow"
       }
     ]
+  },
+  "kiroUpgrade": {
+    "revision": 3,
+    "fingerprint": "sha256:1f7bb0573a75e18aa5b8071a6c0f4356f3e4510357972bcef7dc9d22e6ccde8e",
+    "source": "sha256:79dc54dcd5ca0c92cd9d723cfde59ce13a4b3108db0195f0f128c1168113d67e"
   }
 }
