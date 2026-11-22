@@ -21,7 +21,7 @@ As Venkat (DevOps), I want the pipeline connected to Mitsui's repository and dep
 
 ## Context
 
-F2 criteria 3, 4 and 5. Task list Thu Nov 19 (pipeline skeleton, Budgets alert). The repository is likely `project-mep-AWS-Infrastructure` on `MEPUSA.ghe.com`, which may resolve DEP-25. Check that AWS CodeConnections supports this GitHub Enterprise host before relying on it.
+F2 criteria 3, 4 and 5. Task list Thu Nov 19 (pipeline skeleton, Budgets alert). The repository is likely `project-mep-AWS-Infrastructure` on `MEPUSA.ghe.com`, which may resolve DEP-25. Check that AWS CodeConnections supports this GitHub Enterprise host before relying on it. The POC account is `Blank Canvas` `108953016877` (RAID I-11, pending Mitsui confirmation in F02-S07). `166390307071` is the Identity Center delegated admin account, not a deployment target for the baseline.
 
 ## Acceptance criteria
 

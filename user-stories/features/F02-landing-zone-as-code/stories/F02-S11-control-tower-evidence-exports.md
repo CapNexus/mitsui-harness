@@ -21,7 +21,7 @@ As Soma (solution architect), I want a script that exports the landing zone, con
 
 ## Context
 
-F2 criteria 1 and 7. Task list Thu Dec 17 (Week 5 check) and Wed Dec 23 (Week 6 export). The script runs through Identity Center access, because the cross-account role is gone after Nov 20.
+F2 criteria 1 and 7. Task list Thu Dec 17 (Week 5 check) and Wed Dec 23 (Week 6 export). CapNexus has no management-account access (RAID I-11, 2026-11-22). Mitsui sends the exports on the two dates and the script checks the files, or CapNexus runs it if Mitsui grants read-only access.
 
 ## Acceptance criteria
 
@@ -35,7 +35,7 @@ F2 criteria 1 and 7. Task list Thu Dec 17 (Week 5 check) and Wed Dec 23 (Week 6 
 
 ## Dependencies
 
-None open. Needs Identity Center access to the management account after F02-S10.
+None open. Needs Mitsui to send the exports, or a read-only role in the management account.
 
 ## Evidence
 
@@ -44,4 +44,5 @@ None open. Needs Identity Center access to the management account after F02-S10.
 ## Status log
 
 - 2026-11-19: created
+- 2026-11-22: Context and dependency changed after RAID I-11. No management-account role exists for CapNexus.
 - 2026-11-19: blocked_by DEP-02 added. CapNexus needs management-account access after the cross-account role is deleted.
