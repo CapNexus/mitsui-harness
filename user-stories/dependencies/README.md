@@ -20,8 +20,8 @@ Status values: `open`, `requested`, `in-progress`, `resolved`, `slipped`. A `sli
 
 | ID | Dependency | Owner (Mitsui) | Needed by | Type | Status | Used by features | Notes |
 |---|---|---|---|---|---|---|---|
-| DEP-01 | Named owners and backups | Noah Jackson | Nov 16 | D | open | F1 | |
-| DEP-02 | Management account, root MFA, cross-account role | Noah Jackson, Matt Schiefelbein | Nov 17 | D+B | open | F2, F3, F6 | |
+| DEP-01 | Named owners and backups | Noah Jackson | Nov 16 | D | resolved | F1 | Owners named at the team meeting; no backups named, backups optional (RAID D-09). Attested by Soma Muniyappa 2026-11-20. |
+| DEP-02 | Management account, root MFA, cross-account role | Noah Jackson, Matt Schiefelbein | Nov 17 | D+B | in-progress | F2, F3, F6 | Control Tower set up; management account update expected week of 2026-11-23 (Soma Muniyappa, 2026-11-20). |
 | DEP-03 | Three account emails | Noah Jackson | Nov 18 | D+A | open | F2, F4 | |
 | DEP-04 | Change-freeze calendar and CAB rules | Noah Jackson | Week 1 | C | open | F1, F3 | |
 | DEP-05 | InfoSec, vendor and data-copy approval | Noah Jackson (names reviewer) | Week 1 and ongoing | C | open | F3, F4 | |
@@ -42,12 +42,12 @@ Status values: `open`, `requested`, `in-progress`, `resolved`, `slipped`. A `sli
 | DEP-20 | IT/PMO device readiness, connection-method approval, user list | Noah Jackson, InfoSec | Dec 9 | C+E | open | F11 | |
 | DEP-21 | SMEs and question set of about 30 questions | Noah Jackson, SMEs | Dec 10 | A | open | F9, F13 | |
 | DEP-22 | About 15 pilot users | Noah Jackson | Week 4 | A+D | open | F10, F13 | |
-| DEP-23 | Acceptance owner and UAT testers | Noah Jackson | Week 6 | C | open | F1, F13, F14 | |
+| DEP-23 | Acceptance owner and UAT testers | Noah Jackson | Week 6 | C | in-progress | F1, F13, F14 | Noah Jackson confirmed as acceptance owner (Soma Muniyappa, 2026-11-20). UAT testers not yet named. |
 | DEP-24 | Audit and logging policy, alarm recipients | Noah Jackson, InfoSec | Week 5 | A | open | F12 | |
 | DEP-25 | Repository and pipeline home | Mitsui | Week 1 | A+D | open | F2, F14 | |
 | DEP-26 | Budget approval and billing contact | Noah Jackson | Week 1 | C+A | open | F1, F2 | |
 | DEP-27 | Identity propagation to Athena | Soma (Solution Architect, test), Noah (accepts fallback) | Dec 2 | E | open | F6, F7, F8, F12 | |
 | DEP-28 | Handover recipients, readout attendees, post-POC decision | Noah Jackson | Dec 14 | A+C | open | F14 | |
-| DEP-29 | CapNexus working access (Teams, Entra guest, AWS portal) | Mitsui | Week 1 | D | open | F1, F6 | |
+| DEP-29 | CapNexus working access (Teams, Entra guest, AWS portal) | Mitsui | Week 1 | D | in-progress | F1, F6 | All five engineers have AWS and Git access (Soma Muniyappa, 2026-11-20). Shared Teams channel not needed (RAID D-12). Entra guest invitation still open, tracked under F6. |
 
 Status values start as `open` because this folder has no record of what was sent. Update them as items are requested and resolved.

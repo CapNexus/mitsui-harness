@@ -18,6 +18,7 @@ Filled as risks arise.
 
 | ID | Item | Owner | Date | Status | Source |
 |---|---|---|---|---|---|
+| R-01 | With kick-off on 2026-11-11 (D-08), six weeks of Period of Performance end about 2026-12-23, but the project plan runs testing (P32) to 2026-12-30. The extra days may need Change Control or written agreement with Noah Jackson. | Mike Charow | 2026-11-23 | open | D-08 |
 
 ## Assumptions
 
@@ -50,4 +51,10 @@ Filled as assumptions are recorded.
 | D-04 | Is Entra P1 licensed, and does UPN equal primary email? | Matt Schiefelbein | 2026-11-20 | open | Feature List s7 q4 |
 | D-05 | Which column is masked, and what are the classification rules? | Noah Jackson, Matt Schiefelbein | 2026-12-04 | open | Feature List s7 q5 |
 | D-06 | Is Mitsui comfortable with the Claude Desktop internet-reachable Gateway path? | Noah Jackson | 2026-12-09 | open | Feature List s7 q6 |
-| D-07 | Who is the executive sponsor above Noah Jackson for escalations? | Noah Jackson | 2026-11-20 | open | Feature List s7 q7 |
+| D-07 | Who is the executive sponsor above Noah Jackson for escalations? Answer: AWS (no named person). | Noah Jackson | 2026-11-20 | open | Feature List s7 q7; Soma Muniyappa, 2026-11-20 |
+| D-08 | The project plan `knowledge/CapNexus - Mitsui Well Data Assistant POC - 2026-11-20.xlsx` is the source of truth for dates and owners where it differs from `task-list/`: kick-off 2026-11-11 to 2026-11-12 (not Nov 16); Uday Gulbi is a CapNexus team member; testing (P32) runs 2026-12-21 to 2026-12-30; Noah Jackson owns P23 Teams bot, P24 Claude clients and P25 descriptions and question set. | Soma Muniyappa | 2026-11-20 | closed | Soma Muniyappa, 2026-11-20 |
+| D-09 | Backups for dependency owners are optional. F01-S02 closes with named owners only; roles without a separate name stay with the current owners. | Soma Muniyappa | 2026-11-20 | closed | Soma Muniyappa, 2026-11-20 |
+| D-10 | Project management evidence (meeting notes, kick-off and owner confirmation, D1 submission, status reports) is kept in the CapNexus project management workspace, not copied into this repo. Gates are recorded here as attested by the named person, with a pointer to that workspace. | Soma Muniyappa | 2026-11-20 | closed | Soma Muniyappa, 2026-11-20 |
+| D-11 | D1 review clock: submitted to Noah Jackson 2026-11-16; 8 business days excluding the 2026-11-26 and 2026-11-27 holidays end 2026-11-30. Silence by then is acceptance; the clock and written rejection path were explained at the meeting. | Mike Charow | 2026-11-30 | open | Soma Muniyappa, 2026-11-20 |
+| D-12 | No shared Mitsui Teams channel for CapNexus engineers. Meetings run in the CapNexus team channel; continuous discussion does not use Teams. F01-S03 closes on AWS and Git access; the Entra guest invitation (part of DEP-29) is tracked under F6. The F10 pilot bot channel is unaffected. | Soma Muniyappa | 2026-11-20 | closed | Soma Muniyappa, 2026-11-20 |
+| D-13 | F1 scripts cut to `check-overdue.sh` only. Dropped: `generate-status-report.sh`, `check-status-reports.sh` (F01-S05), `check-raid-log.sh --require-clock` (F01-S04), `shift-plan.sh` and a stored days-late field (F01-S06). Reports, clock and plan shifts are kept in the CapNexus project management workspace and the project plan (D-08, D-10). | Soma Muniyappa | 2026-11-20 | closed | Soma Muniyappa, 2026-11-20 |
