@@ -9,6 +9,7 @@ STORIES="$(cd "$SCRIPTS/.." && pwd)"
 CHECK="$SCRIPTS/check-overdue.sh"
 VALID="$HERE/fixtures/register-valid.md"
 REAL="$STORIES/dependencies/README.md"
+SNAPSHOT="$HERE/fixtures/register-2026-11-20.md"
 
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
@@ -161,11 +162,42 @@ after="$(cksum <"$VALID")"
 check "F01-S06 AC10: input file is unchanged" [ "$before" = "$after" ]
 check "F01-S06 AC10: no file written to the working directory" [ -z "$(ls -A "$WORK/ro")" ]
 
-# AC3: real register
-run_check --today 2026-11-17 "$REAL"
-check "F01-S06 AC3: real register on 2026-11-17 exits 1" rc_is 1
-check "F01-S06 AC3: real register lists DEP-02" listed DEP-02
-check "F01-S06 AC3: real register does not list resolved DEP-01" not_listed DEP-01
+# AC3: register as of 2026-11-20 (frozen snapshot, so later status changes do not break the test)
+run_check --today 2026-11-17 "$SNAPSHOT"
+check "F01-S06 AC3: 2026-11-20 register on 2026-11-17 exits 1" rc_is 1
+check "F01-S06 AC3: 2026-11-20 register lists DEP-02" listed DEP-02
+check "F01-S06 AC3: 2026-11-20 register does not list resolved DEP-01" not_listed DEP-01
+n="$(printf '%s\n' "$OUT" | grep -c '^OVERDUE ')"
+check "F01-S06 AC3: 2026-11-20 register lists only DEP-02 on 2026-11-17 ($n)" [ "$n" -eq 1 ]
+
+# AC8: the real register's needed-by dates all parse (no status dependence)
+run_check "$REAL"
+check "F01-S06 AC8: real register dates parse, exit 0" rc_is 0
+
+# Review fixes: more invalid needed-by values
+for v in "Week 0" "Feb 29" "Feb 30" "Weeks 3 to 1" "Week 1 to 3"; do
+  f="$(mutant "needed-$(printf '%s' "$v" | tr ' ' '-')")"; set_cell "$f" DEP-01 5 "$v"
+  run_check "$f"
+  check "F01-S06 AC6: needed-by '$v' is not a date" err_has "DEP-01: needed-by \"$v\" is not a date"
+done
+
+# Review fixes: rows that are not DEP-nn inside the table are reported
+f="$(mutant bad-id)"; sed -i 's/^| DEP-01 /| DEP01 /' "$f"
+run_check "$f"
+check "F01-S06 AC6: malformed ID exits 1" rc_is 1
+check "F01-S06 AC6: malformed ID is named" err_has 'unexpected ID DEP01'
+
+# Review fixes: no register table
+printf '# Title\n\nno table here\n' >"$WORK/notable.md"
+run_check "$WORK/notable.md"
+check "F01-S06 AC6: file without a register table exits 1" rc_is 1
+check "F01-S06 AC6: missing table is named" err_has "register table not found"
+
+# Review fixes: usage errors
+run_check --today "" "$VALID"
+check "F01-S06 AC9: --today with an empty value exits 2" rc_is 2
+run_check "$VALID" "$VALID"
+check "F01-S06 AC9: a second file argument exits 2" rc_is 2
 
 # AC8, AC11: no arguments from another directory checks the real register
 (cd "$WORK" && bash "$CHECK" >"$WORK/out" 2>"$WORK/err"); RC=$?; OUT="$(cat "$WORK/out")"; ERR="$(cat "$WORK/err")"

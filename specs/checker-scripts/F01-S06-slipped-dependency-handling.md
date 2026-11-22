@@ -25,7 +25,8 @@ So that the SOW schedule protection (Assumption 8) is documented when a dependen
 
 ### New Files
 - `user-stories/scripts/check-overdue.sh`: the checker.
-- `user-stories/scripts/tests/check-overdue.test.sh`: its tests. Invalid inputs are one-change mutations of the valid fixture in a `mktemp -d` directory, as in the F01-S01 tests.
+- `user-stories/scripts/tests/check-overdue.test.sh`: its tests.
+- `user-stories/scripts/tests/fixtures/register-2026-11-20.md`: frozen copy of the register on 2026-11-20 for plan criterion 3. Invalid inputs are one-change mutations of the valid fixture in a `mktemp -d` directory, as in the F01-S01 tests.
 
 ## Checker Design
 - Usage: `check-overdue.sh [--today YYYY-MM-DD] [FILE]`. `-h` prints usage and exits 0. FILE defaults to the repository's `user-stories/dependencies/README.md`, resolved from the script's location.
@@ -78,7 +79,8 @@ IMPORTANT: Execute every step in order, top to bottom.
 - Nonexistent file: exit 2. `-h`: exit 0 and usage.
 - CRLF copy of the fixture gives the same overdue list as the original.
 - Read-only: fixture checksum unchanged and no file written in the working directory.
-- Real register, `--today 2026-11-17`: exit 1, lists DEP-02, does not list DEP-01 (resolved 2026-11-20).
+- Register snapshot of 2026-11-20, `--today 2026-11-17`: exit 1, lists only DEP-02, does not list DEP-01 (resolved 2026-11-20). A snapshot is used so later status changes in the live register do not break the test.
+- Review additions: needed-by `Week 0`, `Feb 29`, `Feb 30`, `Weeks 3 to 1` and `Week 1 to 3` are not dates; a `|` row whose ID is not `DEP-nn` is reported; a file without a register table is reported; `--today ""` and a second file argument exit 2.
 - Real register, no arguments, from another working directory: exit 0 and `PASS`.
 
 Coverage: the Jest threshold does not apply (no TypeScript). Every output message and exit code in Checker Design is asserted by at least one test.
@@ -86,7 +88,7 @@ Coverage: the Jest threshold does not apply (no TypeScript). Every output messag
 ## Acceptance Criteria
 1. When `check-overdue.sh --today D` runs, it shall list every register row whose needed-by date is on or before `D` and whose status is not `resolved`, and shall exit 1 if at least one row is listed (F01-S06 criterion 1).
 2. When the checker runs with `--today 2026-11-17` against the test fixture, it shall list DEP-01 and DEP-02 and shall not list DEP-03.
-3. When the checker runs with `--today 2026-11-17` against the real register, it shall list DEP-02 and shall not list DEP-01, because DEP-01 is `resolved`.
+3. When the checker runs with `--today 2026-11-17` against the register snapshot of 2026-11-20 (`tests/fixtures/register-2026-11-20.md`), it shall list only DEP-02 and shall not list DEP-01, because DEP-01 is `resolved`.
 4. Each listed row shall show the dependency ID, its needed-by text, the resolved due date as `YYYY-MM-DD`, its status, and the days late as `D` minus the due date (F01-S06 criterion 2, days late).
 5. The checker shall convert `Mon D` dates to 2026 for `Nov` and `Dec` and to 2027 for `Jan` to `Oct`, `Week N` to the Friday of week N, and `Weeks A to B` to the Friday of week B, with week 1 ending Fri 2026-11-20.
 6. If a needed-by value cannot be converted to a date, then the checker shall exit 1 and name the row and the value.
