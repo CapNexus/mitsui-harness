@@ -26,13 +26,13 @@ SOW Assumption 8 shifts plan dates by the number of days a Mitsui dependency is 
 ## Acceptance criteria
 
 1. Given a dependency whose needed-by date has passed without status `resolved`, when the checker runs, then it lists the dependency as overdue.
-   - verify: `scripts/check-overdue.sh --today 2026-11-17` exits non-zero and lists DEP-01 and any other item due on or before that date that is not resolved.
+   - verify: `scripts/check-overdue.sh --today 2026-11-17` exits non-zero and lists every item due on or before that date that is not resolved: DEP-01 in the test fixture, DEP-02 in the register (DEP-01 was resolved 2026-11-20).
 2. Given an overdue dependency is marked `slipped`, when the row is saved, then it has a slip start date, the cause, and the number of days late.
-   - verify: `scripts/check-dependency-register.sh` fails if any of these is empty.
+   - verify: `scripts/check-dependency-register.sh` fails if the slip date or cause is empty. Days late are computed by `scripts/check-overdue.sh` from the needed-by date, not stored in the row (RAID D-13).
 3. Given a slipped dependency, when the shift helper runs, then it proposes new dates for the tasks that depend on it, shifted by the number of days late.
-   - verify: `scripts/shift-plan.sh DEP-<nn> <days> --dry-run` prints the changed dates and writes nothing. Script is created by this story.
+   - gate: dropped (RAID D-13). Plan dates live in the project plan (RAID D-08); Mike Charow shifts them there.
 4. Given the proposed dates, when they are approved, then the task list files are updated and the change is described in the next weekly status report.
-   - gate: Mike (PM) approves. The report from F01-S05 mentions the shift.
+   - gate: Mike Charow approves shifts in the project plan and reports them in the weekly report (RAID D-10, D-13). No slip on 2026-11-20.
 
 ## Dependencies
 
@@ -40,8 +40,9 @@ None.
 
 ## Evidence
 
-The register row, the `shift-plan.sh` dry-run output and the updated task list commit.
+The register row and the `check-overdue.sh` output.
 
 ## Status log
 
 - 2026-11-17: created
+- 2026-11-20: scope cut to `check-overdue.sh` (RAID D-13); `shift-plan.sh` dropped.

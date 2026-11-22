@@ -6,7 +6,7 @@ tier: integrate
 executor: human
 owner: Mike
 repo: planning
-status: ready
+status: done
 sow: D1
 due: 2026-11-20
 blocked_by: [DEP-29]
@@ -21,14 +21,14 @@ As a CapNexus engineer, I want to sign in to the shared Teams channel, the AWS a
 
 ## Context
 
-Five CapNexus roles need access. AWS portal access depends on F2 (Identity Center) and Entra access on F6, so this story covers Teams and the guest invitation only. Portal sign-in is verified in F6.
+Five CapNexus roles need access: Jeff Miller, Mike Charow, Soma Muniyappa, Venkat Paidipalli and Uday Gulbi (RAID D-08). AWS portal access depends on F2 (Identity Center) and Entra access on F6, so this story covers Teams and the guest invitation only. Portal sign-in is verified in F6.
 
 ## Acceptance criteria
 
-1. Given the guest invitation list sent to Mitsui, when Mitsui sends invitations, then each of the five CapNexus engineers receives one.
-   - gate: Mitsui sends invitations. Each engineer replies to confirm receipt.
-2. Given the shared Teams channel exists, when each engineer opens it, then they can post a message.
-   - gate: each engineer posts a test message, and a screenshot is saved as evidence.
+1. Given the five CapNexus engineers, when access is checked, then each can sign in to the POC AWS environment and the Git repository.
+   - gate: confirmed for all five by Soma Muniyappa, 2026-11-20 (RAID D-10, D-12).
+2. Given the project meetings, when they are held, then they run in the CapNexus team channel. No shared Mitsui Teams channel is used for continuous discussion (RAID D-12).
+   - gate: attested by Soma Muniyappa, 2026-11-20. The Entra guest invitation moves to F6.
 3. Given a CapNexus engineer without access on the due date, when the date passes, then the gap is logged as a slipped DEP-29 with date and cause.
    - verify: `scripts/check-dependency-register.sh` passes with the slip fields filled.
 
@@ -45,3 +45,5 @@ Five CapNexus roles need access. AWS portal access depends on F2 (Identity Cente
 ## Status log
 
 - 2026-11-17: created
+- 2026-11-20: named the five CapNexus engineers, adding Uday Gulbi from the project plan (RAID D-08).
+- 2026-11-20: scope narrowed to AWS and Git access (RAID D-12); no shared Mitsui Teams channel. Done, attested by Soma Muniyappa.
