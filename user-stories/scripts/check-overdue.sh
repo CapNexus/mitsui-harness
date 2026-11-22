@@ -74,7 +74,12 @@ check_overdue() {
         z = daynum(y, mon, p[2] + 0)
         return (civil(z) == sprintf("%04d-%02d-%02d", y, mon, p[2] + 0)) ? z : -1
       }
-      if (t ~ /^Weeks [0-9]+ to [0-9]+$/) { split(t, p, " "); n = p[4] + 0 }
+      if (t ~ /^Weeks [0-9]+ to [0-9]+$/) {
+        split(t, p, " ")
+        if (p[2] + 0 > p[4] + 0) return -1
+        n = p[4] + 0
+      }
+      else if (t ~ /^Week [0-9]+ to /) return -1
       else if (t ~ /^Week [0-9]+([ \t].*)?$/) { split(t, p, " "); n = p[2] + 0 }
       else return -1
       if (n < 1) return -1
@@ -114,7 +119,8 @@ check_overdue() {
       if (line ~ /^\|[ \t]*:?-+/ || badcols) next
       n = split(line, f, "|")
       id = trim(f[col["id"]])
-      if (id !~ /^DEP-[0-9]+$/) next
+      if (id == "") next
+      if (id !~ /^DEP-[0-9]+$/) { fail(NR, "unexpected ID " id); next }
       needed = trim(f[col["needed"]]); status = trim(f[col["status"]])
       due = due_daynum(needed)
       if (due < 0) { fail(NR, id ": needed-by \"" needed "\" is not a date"); next }
@@ -131,19 +137,19 @@ check_overdue() {
 }
 
 main() {
-  local file="" today="" have_file=0
+  local file="" today="" have_file=0 have_today=0
   while [ "$#" -gt 0 ]; do
     case "$1" in
       -h | --help) usage; return 0 ;;
       --today)
         if [ "$#" -lt 2 ]; then echo "error: --today needs a date (YYYY-MM-DD)" >&2; usage >&2; return 2; fi
-        today="$2"; shift 2 ;;
+        today="$2"; have_today=1; shift 2 ;;
       *)
         if [ "$have_file" -eq 1 ]; then usage >&2; return 2; fi
         file="$1"; have_file=1; shift ;;
     esac
   done
-  if [ -n "$today" ] && ! valid_today "$today"; then
+  if [ "$have_today" -eq 1 ] && ! valid_today "$today"; then
     echo "error: --today \"$today\" is not a real YYYY-MM-DD date" >&2
     return 2
   fi
@@ -160,6 +166,10 @@ main() {
   local result nfail nover nparsed
   result="$(check_overdue "$file" "$today")"
   read -r nfail nover nparsed <<<"$(printf '%s\n' "$result" | sed -n 's/^SUMMARY //p')"
+  if [ -z "${nparsed:-}" ]; then
+    echo "error: internal failure parsing $file" >&2
+    return 2
+  fi
   printf '%s\n' "$result" | grep '^FAIL ' >&2
   printf '%s\n' "$result" | grep '^OVERDUE '
   if [ "${nfail:-1}" -ne 0 ] || [ "${nover:-1}" -ne 0 ]; then return 1; fi
