@@ -6,7 +6,7 @@ tier: build
 executor: agent
 owner: Venkat
 repo: project-mep-AWS-Infrastructure
-status: ready
+status: done
 sow: D2
 due: 2026-11-19
 blocked_by: []
@@ -49,3 +49,4 @@ The PR in `project-mep-AWS-Infrastructure` and its passing CI run.
 ## Status log
 
 - 2026-11-19: created
+- 2026-11-23: done (submodule 3f48366)
