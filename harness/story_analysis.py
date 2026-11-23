@@ -177,15 +177,25 @@ def relevant_docs(sid: str) -> List[str]:
 
 # --- agent analysis and score ---------------------------------------------------------------
 
-def analyze(sid: str, ready: dict, invoke: Optional[Callable[..., str]] = None) -> dict:
-    """One read-only Kiro `reviewer` turn. Returns the parsed <<<ANALYSIS>>> object."""
+def format_decisions(decisions: Optional[List[dict]]) -> str:
+    """Human answers as settled decisions for the prompt; blank answers are ignored."""
+    given = [d for d in (decisions or []) if d.get("answer", "").strip()]
+    lines = [f"{i}. Q: {d['question'].strip()}\n   A: {d['answer'].strip()}" for i, d in enumerate(given, 1)]
+    return "\n".join(lines) if lines else "(none)"
+
+
+def analyze(sid: str, ready: dict, invoke: Optional[Callable[..., str]] = None,
+            decisions: Optional[List[dict]] = None) -> dict:
+    """One read-only Kiro `reviewer` turn. Returns the parsed <<<ANALYSIS>>> object.
+
+    `decisions` are `{"question", "answer"}` pairs a human settled after an earlier analysis."""
     if invoke is None:
         from agents import invoke_kiro as invoke  # noqa: E402
     story = run_story.load_stories()[sid]
     rendered = prompts.render(PROMPTS_DIR, "analyze_story",
                               story=f"Source: {_rel(story['path'])}\n\n{story['text']}",
                               docs="\n".join(f"- {d}" for d in relevant_docs(sid)),
-                              readiness=ready)
+                              readiness=ready, decisions=format_decisions(decisions))
     reply = invoke(rendered.text, agent="reviewer", step="analyze", template="analyze_story",
                    params={"story": sid})
     block = prompts.extract(reply, "ANALYSIS")
@@ -203,6 +213,7 @@ def score(ready: dict, analysis: dict) -> dict:
             "ready_to_start": final >= THRESHOLD, "factors": ready["factors"]}
 
 
-def run(sid: str, invoke: Optional[Callable[..., str]] = None) -> dict:
+def run(sid: str, invoke: Optional[Callable[..., str]] = None,
+        decisions: Optional[List[dict]] = None) -> dict:
     ready = readiness(sid)
-    return score(ready, analyze(sid, ready, invoke))
+    return score(ready, analyze(sid, ready, invoke, decisions))

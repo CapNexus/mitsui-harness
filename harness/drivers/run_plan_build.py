@@ -37,6 +37,7 @@ import argparse
 import json
 import os
 import re
+import shutil
 import signal
 import subprocess
 import sys
@@ -165,6 +166,37 @@ class PlanBuildContext:
 
     def head(self) -> str:
         return self.git("rev-parse", "HEAD")[1]
+
+
+def _prettier(repo_dir: str, path: str, text: str) -> Optional[str]:
+    """`text` formatted by the target repo's own Prettier and config; None if it cannot run."""
+    npx = shutil.which("npx")
+    if not npx or not os.path.isdir(os.path.join(repo_dir, "node_modules", "prettier")):
+        return None
+    try:
+        r = subprocess.run([npx, "--no-install", "prettier", "--stdin-filepath", path], cwd=repo_dir,
+                           input=text, capture_output=True, text=True, encoding="utf-8",
+                           errors="replace", timeout=120)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return r.stdout.replace("\r\n", "\n") if r.returncode == 0 else None
+
+
+def formatting_only(pbc: PlanBuildContext, path: str) -> bool:
+    """True when `path` differs from its `commit_tests` version only by Prettier formatting:
+    both versions format to the same text with the repo's Prettier. Any real edit still fails."""
+    shown = subprocess.run(["git", "-C", pbc.repo_dir, "show", f"{pbc.tests_commit}:{path}"],
+                           capture_output=True, text=True, encoding="utf-8", errors="replace")
+    try:
+        with open(os.path.join(pbc.repo_dir, path), encoding="utf-8", errors="replace") as fh:
+            current = fh.read()
+    except OSError:
+        return False
+    if shown.returncode != 0:
+        return False
+    committed_fmt = _prettier(pbc.repo_dir, path, shown.stdout)
+    current_fmt = _prettier(pbc.repo_dir, path, current)
+    return committed_fmt is not None and committed_fmt == current_fmt
 
 
 # --- validator ------------------------------------------------------------------------------
@@ -346,9 +378,15 @@ def make_run_check(pbc: Optional[PlanBuildContext]) -> loop_driver.CheckRunner:
             if not paths:
                 return True, "skipped: the tests commit has no files"
             code, out = pbc.git("diff", "--name-only", pbc.tests_commit, "--", *paths)
-            changed = [f for f in out.splitlines() if f.strip()]
-            if code != 0 or changed:
-                return False, "implement changed files committed by commit_tests: " + ", ".join(changed or [out])
+            changed = [f for f in out.splitlines() if f.strip() in paths]   # drop git's stderr warnings
+            if code != 0:
+                return False, "implement changed files committed by commit_tests: " + out
+            real = [f for f in changed if not formatting_only(pbc, f)]
+            if real:
+                return False, "implement changed files committed by commit_tests: " + ", ".join(real)
+            if changed:
+                return True, (f"{len(paths) - len(changed)} file(s) byte-identical; {len(changed)} differ "
+                              "only by Prettier formatting: " + ", ".join(changed))
             return True, f"{len(paths)} file(s) from commit_tests byte-identical"
 
         if name == "green":

@@ -30,7 +30,8 @@ plan_file_path: $1
 - Do not edit existing tests, source files, `package.json`, or Jest, ESLint and tsconfig configuration. If the plan requires a new test helper or fixture, create it under `test/`.
 - Do not create stubs or empty implementations to make imports resolve. A test that fails because the module under test does not exist yet is an acceptable red state, but prefer assertions that fail on behavior when the module already exists.
 - Run only the new test files, for example `npx jest <path>`, and confirm they fail. If a test passes before implementation, it does not test the criterion: fix or remove it. If a failure comes from a mistake in the test (syntax error, bad import of an existing module, wrong fixture path), fix the test.
-- The `validate` step later runs format, lint with zero warnings, build and the full test suite. Write tests that satisfy them. Run `npx prettier --write` on the files you created, and no others. Do not run `cdk deploy` or any command that changes AWS state.
+- The `validate` step later runs format, lint with zero warnings, build and the full test suite. Write tests that satisfy them. Run `npx prettier --write --single-quote --trailing-comma all --print-width 110` on the files you created, and no others: these are the exact options the repo's `.prettierrc.json` will contain (`{"singleQuote": true, "trailingComma": "all", "printWidth": 110}`), because the config does not exist yet when you write tests. Do not run `cdk deploy` or any command that changes AWS state.
+- `Match.arrayWith([...])` matches the expected items in order. List them in the order the synthesized template emits them. CloudFormation tags (`Tags`) are sorted alphabetically by `Key` (`cost-center`, `environment`, `owner`, `project`), so write tag expectations in that order, or assert one tag per `arrayWith`.
 
 ## Output contract (STRICT)
 

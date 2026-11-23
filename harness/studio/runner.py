@@ -314,6 +314,27 @@ class Runner:
         self.db.event(rid, "warn", "run reset: " + "; ".join(notes))
         return {"status": "discarded", "notes": notes}
 
+    def restart_story(self, sid: str) -> dict:
+        """Send a story back to Understand: discard its unfinished build (see `reset`) and its
+        latest analysis, so the next step is a fresh analysis. Runs stay in the history and the
+        answers a human saved stay in the database, so the re-analysis uses them."""
+        if sid not in run_story.load_stories():
+            raise ValueError(f"unknown story {sid}")
+        if self.active:
+            raise ValueError(f"run {self._active} is still active; stop it first")
+        notes: List[str] = []
+        impl = self.db.latest(sid, "implementation")
+        if impl and impl["status"] not in ("discarded",):
+            if impl["status"] not in RESETTABLE:
+                raise ValueError(f"the build is {impl['status']}; only an unfinished, failed, stopped or "
+                                 "rejected build can be reset")
+            notes += self.reset(impl["id"])["notes"]
+        ana = self.db.latest(sid, "analysis")
+        if ana and ana["status"] in ("completed", "failed", "stopped", "interrupted"):
+            self.db.update_run(ana["id"], status="discarded", error="reset by user; analyze again")
+            notes.append(f"analysis {ana['id']} discarded")
+        return {"status": "understand", "notes": notes}
+
     def complete_review(self, rid: str, action: str, note: str = "") -> dict:
         """The human gate after the harness `commit` step: approve (ready to push and open a
         PR) or reject. Nothing is pushed from here."""
@@ -446,7 +467,7 @@ class Runner:
                                       f"{'✓' if f['ok'] else '✗'} {f['name']}: {f['detail']}", step["name"])
                     detail = f"score {ctx['readiness']['score']}%, cap {ctx['readiness']['cap']}%"
                 elif step["name"] == "analyze":
-                    ctx["analysis"] = story_analysis.analyze(sid, ctx["readiness"])
+                    ctx["analysis"] = story_analysis.analyze(sid, ctx["readiness"], decisions=self.db.answers(sid))
                     detail = f"agent confidence {ctx['analysis'].get('confidence')}%"
                 else:
                     result = story_analysis.score(ctx["readiness"], ctx["analysis"])
