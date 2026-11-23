@@ -346,10 +346,11 @@ async function startAnalysis() {
 }
 
 function viewAnalyze() {
-  const a = latest("analysis"), r = a?.result, running = a && ["queued", "running"].includes(a.status);
+  const a = latest("analysis"), r = a?.status === "discarded" ? null : a?.result, running = a && ["queued", "running"].includes(a.status);
   let html = `<p class="panel-intro">Kiro's read-only reviewer reads the story, its feature, the dependency register, the parameters, the ADRs, the knowledge documents and the project rules, then judges whether it can build the story now. Nothing is changed. Same as <code>run_story.py analyze</code>.</p>
     <div class="row"><button class="btn ${r ? "" : "primary"}" id="btnAnalyze" ${running || S.ov.active_run ? "disabled" : ""}>${running ? "Analysis running…" : r ? "Run the analysis again" : "Run analysis"}</button>
     ${S.ov.active_run && !running ? `<span class="muted small">Another run is active; wait for it to finish.</span>` : ""}
+    ${a || latest("implementation") ? `<button class="btn danger" id="btnRestart" ${S.ov.active_run ? "disabled" : ""}>Reset to Understand</button>` : ""}
     ${a ? `<span class="muted small">Last run ${esc(ago(a.updated_at))} · <a href="#" data-run="${esc(a.id)}">open its log</a></span>` : ""}</div>`;
   if (a?.status === "failed") html += `<div class="callout bad"><b>The analysis failed.</b> ${esc(failureHint("analyze", a.error))}<br><span class="small">${esc(a.error)}</span></div>`;
   if (r) {
@@ -361,15 +362,39 @@ function viewAnalyze() {
       <div class="bars">${Object.entries(r.dimensions || {}).map(([k, v]) => `<span>${esc(k.replace(/_/g, " "))}</span><span class="bar"><i style="width:${Number(v)}%"></i></span><span>${Number(v)}</span>`).join("")}</div></div>
       <p class="small muted">${c}% = 60% × Kiro's ${r.agent} + 40% × facts ${r.readiness}${r.capped ? `, capped at ${r.cap}` : ""}.</p>
       ${verdict}<p>${esc(r.summary || "")}</p>
-      ${r.questions?.length ? `<h4>Questions to answer</h4><ol>${r.questions.map((x) => `<li>${esc(x)}</li>`).join("")}</ol>` : ""}
+      ${r.questions?.length ? `<h4>Questions to answer</h4><p class="small muted">Kiro proposes an answer to each question. Change any answer, then re-analyze: your answers are passed to Kiro as settled decisions. Answers needing a person at Mitsui are left empty.</p><ol>${r.questions.map((x, i) => {
+        const p = (r.proposed_answers || [])[i] || {};
+        return `<li>${esc(x)}<div class="small muted">${p.needs_human ? `<b>Needs a person:</b> ` : `Proposed: `}${esc(p.answer || "no proposal")}${p.basis ? ` (${esc(p.basis)})` : ""}</div>
+        <textarea class="qanswer" data-q="${i}" rows="3" style="width:100%" aria-label="Answer to question ${i + 1}"></textarea></li>`;
+      }).join("")}</ol>
+      <div class="row"><button class="btn" id="saveAnswers">Save answers</button> <button class="btn primary" id="reanalyze" ${running || S.ov.active_run ? "disabled" : ""}>Save and re-analyze</button> <span class="small muted" id="answerMsg"></span></div>` : ""}
       ${r.risks?.length ? `<details class="box"><summary>Risks Kiro sees (${r.risks.length})</summary><ul>${r.risks.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></details>` : ""}
       ${r.relevant_docs?.length ? `<details class="box"><summary>Documents that matter for this story (${r.relevant_docs.length})</summary><ul>${r.relevant_docs.map((x) => `<li><code>${esc(x)}</code></li>`).join("")}</ul></details>` : ""}
       <div class="row"><button class="btn ${c >= S.threshold ? "primary" : ""}" id="goImpl">Continue to Implement →</button></div>`;
   }
   $("#viewbody").innerHTML = html;
   $("#btnAnalyze").onclick = startAnalysis;
+  if ($("#btnRestart")) $("#btnRestart").onclick = restartStory;
   $("#viewbody").querySelectorAll("[data-run]").forEach((x) => (x.onclick = (e) => { e.preventDefault(); openRun(x.dataset.run); }));
   const gi = $("#goImpl"); if (gi) gi.onclick = () => go("implement");
+  if (r?.questions?.length) wireAnswers(r);
+}
+
+async function wireAnswers(r) {
+  const sid = S.story.summary.id, boxes = [...document.querySelectorAll(".qanswer")];
+  const saved = (await api(`/api/stories/${sid}/answers`)).answers;
+  boxes.forEach((b) => {
+    const q = r.questions[Number(b.dataset.q)], p = (r.proposed_answers || [])[Number(b.dataset.q)] || {};
+    const s = saved.find((x) => x.question === q);
+    b.value = s ? s.answer : p.needs_human ? "" : p.answer || "";
+  });
+  const save = async () => {
+    const answers = boxes.map((b) => ({ question: r.questions[Number(b.dataset.q)], answer: b.value }));
+    await api(`/api/stories/${sid}/answers`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ answers }) });
+    $("#answerMsg").textContent = "Saved.";
+  };
+  $("#saveAnswers").onclick = () => save().catch((e) => ($("#answerMsg").textContent = String(e.message || e)));
+  $("#reanalyze").onclick = async () => { try { await save(); await startAnalysis(); } catch (e) { $("#answerMsg").textContent = String(e.message || e); } };
 }
 
 function viewImplement() {
@@ -587,7 +612,16 @@ async function refreshRun() {
   $("#btnReset").classList.toggle("hidden", r.kind !== "implementation" || r.active || !["failed", "stopped", "interrupted", "awaiting_review", "rejected"].includes(r.status));
   $("#restartBox").classList.toggle("hidden", !canRerun);
   if (canRerun) $("#fromStep").innerHTML = r.steps.filter((s) => s.kind !== "human").map((s) => `<option value="${esc(s.name)}" ${failed && failed.name === s.name ? "selected" : ""}>${esc(stepTitle(s.name))}</option>`).join("");
-  if (!r.active) { loadOverview(); if (S.story?.summary.id === r.story_id) refreshStory(); }
+  const justFinished = S.activeRun === r.id && !r.active;
+  S.activeRun = r.active ? r.id : (S.activeRun === r.id ? null : S.activeRun);
+  if (!r.active) {
+    loadOverview();
+    if (S.story?.summary.id === r.story_id) {
+      await refreshStory();
+      // Move on by itself when a watched analysis finishes: the result is the next thing to read.
+      if (justFinished && r.kind === "analysis" && r.status === "completed") go("analyze");
+    }
+  }
 }
 const resumeRun = async (from_step) => {
   try { await api(`/api/runs/${S.run}/resume`, { method: "POST", body: JSON.stringify({ from_step: from_step || "" }) }); await openRun(S.run); if (S.story) refreshStory(); }
@@ -595,6 +629,15 @@ const resumeRun = async (from_step) => {
 };
 $("#btnStop").onclick = async () => { if (!confirm("Stop this run? You can resume it later from the same step.")) return; try { await api(`/api/runs/${S.run}/stop`, { method: "POST" }); } catch (e) { toast(e.message); } };
 $("#btnResume").onclick = () => resumeRun("");
+async function restartStory() {
+  if (!confirm("Reset this story to Understand?\n\nAn unfinished build is discarded: its work branch is deleted (uncommitted work goes to a git stash) and the latest analysis is discarded. Runs stay in History and your saved answers are kept for the next analysis.")) return;
+  try {
+    const r = await api(`/api/stories/${S.story.summary.id}/restart`, { method: "POST" });
+    toast(`Reset. ${r.notes.join("; ") || "Nothing to discard."}`, 9000);
+    await loadOverview(); await refreshStory(); go("understand");
+  } catch (e) { toast(e.message, 9000); }
+}
+
 async function resetRun(rid) {
   if (!confirm("Reset this build?\n\nThis leaves the story branch and deletes it, with every commit Kiro made on it. Uncommitted work is saved in a git stash. The story then starts again from the beginning.")) return;
   try {

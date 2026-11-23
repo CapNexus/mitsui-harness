@@ -112,6 +112,12 @@ check_protected() {
 
   # package.json: only the sections the gates depend on are protected.
   [ -f package.json ] || [ "$mode" = code ] || return "$rc"
+  # First story on an empty repo: the base has no package.json, so the scaffold creates it
+  # and its sections cannot "change". Once the base has one, the sections stay protected.
+  if [ "$scaffold" = "1" ] && ! git cat-file -e "${base}:package.json" 2>/dev/null; then
+    echo "  scaffold mode: package.json is new (absent at the base ref); sections not compared"
+    return "$rc"
+  fi
   local base_pkg
   base_pkg="$(git show "${base}:package.json" 2>/dev/null || echo '{}')"
   if ! BASE_PKG="$base_pkg" node -e '

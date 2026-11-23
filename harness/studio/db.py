@@ -63,6 +63,14 @@ CREATE TABLE IF NOT EXISTS events (
     text      TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS events_run ON events(run_id, id);
+
+CREATE TABLE IF NOT EXISTS answers (
+    story_id   TEXT NOT NULL,
+    question   TEXT NOT NULL,
+    answer     TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (story_id, question)
+);
 """
 
 
@@ -88,6 +96,21 @@ class DB:
         with self._lock:
             cur = self._conn.execute(sql, args)
             return cur.lastrowid
+
+    # --- answers to analysis questions --------------------------------------------------
+
+    def answers(self, story_id: str) -> List[dict]:
+        return [{"question": r["question"], "answer": r["answer"], "updated_at": r["updated_at"]}
+                for r in self._q("SELECT * FROM answers WHERE story_id=? ORDER BY rowid", (story_id,))]
+
+    def save_answers(self, story_id: str, items: List[dict]) -> None:
+        """Replace the story's answers. A blank answer removes that question's answer."""
+        with self._lock:
+            self._x("DELETE FROM answers WHERE story_id=?", (story_id,))
+            for it in items:
+                if it["answer"].strip():
+                    self._x("INSERT OR REPLACE INTO answers VALUES (?,?,?,?)",
+                            (story_id, it["question"], it["answer"].strip(), now()))
 
     # --- runs ---------------------------------------------------------------------------
 

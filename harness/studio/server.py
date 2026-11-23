@@ -137,6 +137,26 @@ def analyze(sid: str) -> dict:
     return {"run_id": _guard(runner.start_analysis, sid)}
 
 
+class AnswerItem(BaseModel):
+    question: str
+    answer: str
+
+
+class AnswersBody(BaseModel):
+    answers: list[AnswerItem]
+
+
+@app.get("/api/stories/{sid}/answers")
+def get_answers(sid: str) -> dict:
+    return {"answers": db.answers(sid)}
+
+
+@app.put("/api/stories/{sid}/answers")
+def put_answers(sid: str, body: AnswersBody) -> dict:
+    db.save_answers(sid, [a.model_dump() for a in body.answers])
+    return {"answers": db.answers(sid)}
+
+
 @app.post("/api/stories/{sid}/preflight")
 def preflight(sid: str, body: ImplementBody) -> dict:
     errors, _ = runner.preflight(sid, body.branch, body.override_reason)
@@ -179,6 +199,11 @@ def resume(rid: str, body: ResumeBody = ResumeBody()) -> dict:
 @app.post("/api/runs/{rid}/reset")
 def reset(rid: str) -> dict:
     return _guard(runner.reset, rid)
+
+
+@app.post("/api/stories/{sid}/restart")
+def restart(sid: str) -> dict:
+    return _guard(runner.restart_story, sid)
 
 
 @app.get("/api/runs/{rid}/diff")
