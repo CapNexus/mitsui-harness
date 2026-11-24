@@ -36,7 +36,7 @@ import time
 from concurrent.futures import Future
 from concurrent.futures import TimeoutError as FutureTimeout
 from dataclasses import dataclass, field
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Set
 
 import acp
 from acp import Client, text_block
@@ -75,6 +75,9 @@ def _env_seconds(name: str, default: float) -> float:
         return default
     return value if value > 0 else default
 
+# Tool-call statuses after which the tool is no longer running.
+_TOOL_DONE_STATUSES = {"completed", "failed", "cancelled"}
+
 # stop_reason values that are *not* successful completion.
 _ERROR_STOP_REASONS = {"max_tokens", "max_turn_requests", "refusal", "cancelled"}
 
@@ -106,9 +109,19 @@ class _AEWClient(Client):
         self.last_usage: Optional[Any] = None
         self._audit: Optional[StepAudit] = None
         self.last_activity = time.monotonic()   # read by the turn watchdog in KiroACPClient._run
+        self.active_tools: Set[str] = set()      # tool calls started and not yet finished
 
     def touch(self) -> None:
         self.last_activity = time.monotonic()
+
+    def track_tool(self, update: Any) -> None:
+        """Record whether a tool call is still running, so a long silent tool is not 'idle'."""
+        call_id = str(getattr(update, "tool_call_id", None) or getattr(update, "title", None) or "?")
+        status = str(getattr(update, "status", None) or "in_progress")
+        if status in _TOOL_DONE_STATUSES:
+            self.active_tools.discard(call_id)
+        else:
+            self.active_tools.add(call_id)
 
     def set_audit(self, step_audit: Optional[StepAudit]) -> None:
         self._audit = step_audit
@@ -117,6 +130,7 @@ class _AEWClient(Client):
         self.text_chunks.clear()
         self.tool_calls.clear()
         self.last_usage = None
+        self.active_tools.clear()
 
     async def request_permission(
         self, *, session_id: str, tool_call: Any, options: List[Any], **_: Any
@@ -181,6 +195,7 @@ class _AEWClient(Client):
             if text and self._audit is not None:
                 self._audit.add_thinking_text(text)
         elif kind in ("tool_call", "tool_call_update"):
+            self.track_tool(update)
             if self._audit is not None:
                 self._audit.record(f"session_update:{kind}", update)
             title = getattr(update, "title", "")
@@ -280,9 +295,12 @@ class KiroACPClient:
 
     def _run(self, coro) -> Any:
         assert self._loop is not None, "client not started"
+        if self._client is not None:
+            self._client.active_tools.clear()   # before scheduling: a new turn starts with no tools
         fut: Future = asyncio.run_coroutine_threadsafe(coro, self._loop)
         # A stalled turn must not hang the whole run, but a busy one must not be cut off.
-        # BOOTSTRAP_STEP_IDLE_TIMEOUT: seconds without any agent event (default 600).
+        # BOOTSTRAP_STEP_IDLE_TIMEOUT: seconds without any agent event (default 600),
+        # not counted while a tool call is running (a long silent command such as the test suite).
         # BOOTSTRAP_STEP_TIMEOUT: hard cap on the whole turn (default 5400).
         # Either raises a TimeoutError the step runner treats as a failed attempt.
         idle_limit = _env_seconds("BOOTSTRAP_STEP_IDLE_TIMEOUT", DEFAULT_IDLE_TIMEOUT)
@@ -302,7 +320,8 @@ class KiroACPClient:
             if now - started > hard_cap:
                 fut.cancel()
                 raise TimeoutError(f"ACP turn exceeded {hard_cap:.0f}s (hard cap)")
-            if now - max(last, started) > idle_limit:
+            tool_running = self._client is not None and bool(self._client.active_tools)
+            if not tool_running and now - max(last, started) > idle_limit:
                 fut.cancel()
                 raise TimeoutError(
                     f"ACP turn idle for {idle_limit:.0f}s (no agent output or tool activity); "

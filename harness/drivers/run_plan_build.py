@@ -27,7 +27,8 @@ and `kiro-cli` on PATH)::
 `red`/`green`/`validate` run this harness's own `scripts/validate.sh` and check its exit
 code. If that script does not exist yet they report "skipped: no validator yet".
 
-Every validator run is bounded by `VALIDATOR_TIMEOUT` (default 300s); on timeout the whole
+A validator run waits until the validator finishes. Setting `VALIDATOR_TIMEOUT` (seconds, default 0 =
+no limit) opts in to a wall-clock cap; on timeout the whole
 process tree is killed (process group on POSIX, `taskkill /T` on Windows).
 """
 
@@ -55,7 +56,7 @@ import prompts  # noqa: E402
 PROMPTS_DIR = ".kiro/prompts"
 WORKFLOW_PATH = "harness/workflows/plan_build.json"
 VALIDATOR = "scripts/validate.sh"
-VALIDATOR_TIMEOUT = float(os.getenv("VALIDATOR_TIMEOUT", "300"))
+VALIDATOR_TIMEOUT = float(os.getenv("VALIDATOR_TIMEOUT", "0"))  # 0 = wait for completion
 
 # HARNESS.md "Classifications": the work types with TDD = no. `red` and `tests_unchanged`
 # are skipped for them (the plan_build workflow's own check text says so).
@@ -216,8 +217,9 @@ def _run_validator_once(pbc: Optional[PlanBuildContext]) -> Tuple[int, str]:
         timed_out.set()
         kill_tree(proc)
 
-    timer = threading.Timer(VALIDATOR_TIMEOUT, _timeout)
-    timer.start()
+    timer = threading.Timer(VALIDATOR_TIMEOUT, _timeout) if VALIDATOR_TIMEOUT > 0 else None
+    if timer:
+        timer.start()
     lines: List[str] = []
     try:
         for line in proc.stdout:  # type: ignore[union-attr]
@@ -227,7 +229,8 @@ def _run_validator_once(pbc: Optional[PlanBuildContext]) -> Tuple[int, str]:
                 pbc.on_output(line)
         code = proc.wait()
     finally:
-        timer.cancel()
+        if timer:
+            timer.cancel()
         if proc.stdout:
             proc.stdout.close()
         if pbc and pbc.on_process:

@@ -22,6 +22,7 @@ class FakeClient:
 
     def __init__(self) -> None:
         self.last_activity = 0.0
+        self.active_tools: set = set()
 
     def touch(self) -> None:
         import time
@@ -72,6 +73,43 @@ class WatchdogTest(unittest.TestCase):
             self.client._run(silent())
         self.assertIn("idle for 1s", str(cm.exception))
 
+    def test_silent_turn_is_not_cut_off_while_a_tool_is_running(self) -> None:
+        os.environ["BOOTSTRAP_STEP_IDLE_TIMEOUT"] = "1"
+        os.environ["BOOTSTRAP_STEP_TIMEOUT"] = "30"
+
+        async def long_tool() -> str:
+            self.fake.active_tools.add("npm-test")
+            await asyncio.sleep(3)      # silent for 3x the idle limit, but a tool is running
+            self.fake.active_tools.discard("npm-test")
+            return "done"
+
+        self.assertEqual(self.client._run(long_tool()), "done")
+
+    def test_idle_clock_applies_again_once_the_tool_finishes(self) -> None:
+        os.environ["BOOTSTRAP_STEP_IDLE_TIMEOUT"] = "1"
+        os.environ["BOOTSTRAP_STEP_TIMEOUT"] = "30"
+
+        async def tool_then_silence() -> None:
+            self.fake.active_tools.add("t")
+            await asyncio.sleep(1.5)
+            self.fake.active_tools.discard("t")
+            self.fake.touch()
+            await asyncio.sleep(30)
+
+        with self.assertRaises(TimeoutError) as cm:
+            self.client._run(tool_then_silence())
+        self.assertIn("idle for 1s", str(cm.exception))
+
+    def test_tool_tracking_follows_tool_call_status(self) -> None:
+        from types import SimpleNamespace
+
+        real = acp_client._AEWClient(auto_approve=False)
+        real.track_tool(SimpleNamespace(tool_call_id="a", status="in_progress"))
+        real.track_tool(SimpleNamespace(tool_call_id="b", status="pending"))
+        self.assertEqual(real.active_tools, {"a", "b"})
+        real.track_tool(SimpleNamespace(tool_call_id="a", status="completed"))
+        real.track_tool(SimpleNamespace(tool_call_id="b", status="failed"))
+        self.assertEqual(real.active_tools, set())
     def test_hard_cap_stops_a_turn_that_keeps_talking(self) -> None:
         os.environ["BOOTSTRAP_STEP_IDLE_TIMEOUT"] = "5"
         os.environ["BOOTSTRAP_STEP_TIMEOUT"] = "1"
